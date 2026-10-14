@@ -1,0 +1,3842 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Khu Phố Chợ Đầu Mối 3400px - UFO Sếp Đi Bắt Cóc</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0f172a;
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+        }
+        #street-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            cursor: grab;
+        }
+        #street-canvas:active {
+            cursor: grabbing;
+        }
+        /* Arcade 3D Button Styling */
+        .arcade-btn {
+            transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.14s ease, filter 0.14s ease;
+            border: 3px solid #1e1b4b;
+            box-shadow: 0 4px 0 #1e1b4b, 0 8px 16px rgba(0, 0, 0, 0.35);
+            cursor: pointer;
+        }
+        .arcade-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            filter: brightness(1.06);
+            box-shadow: 0 6px 0 #1e1b4b, 0 12px 20px rgba(0, 0, 0, 0.42);
+        }
+        .arcade-btn:active:not(:disabled) {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #1e1b4b, 0 3px 6px rgba(0, 0, 0, 0.3);
+        }
+        .arcade-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+        /* Hardware Accelerated Smooth Drawers */
+        .gpu-drawer {
+            will-change: transform;
+            transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .drawer-right-closed {
+            transform: translate3d(105%, 0, 0);
+        }
+        .drawer-left-closed {
+            transform: translate3d(-105%, 0, 0);
+        }
+        .drawer-open {
+            transform: translate3d(0, 0, 0);
+        }
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: 9999px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #6366f1;
+            border-radius: 9999px;
+        }
+        /* Range slider for mini camera bar */
+        input[type=range].pan-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type=range].pan-slider::-webkit-slider-runnable-track {
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.75);
+            border: 2px solid #1e1b4b;
+        }
+        input[type=range].pan-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 28px;
+            height: 16px;
+            border-radius: 999px;
+            background: #fbbf24;
+            border: 2px solid #1e1b4b;
+            margin-top: -6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen overflow-hidden select-none">
+
+    <!-- FULLSCREEN 3400px PANORAMIC 2.5D VIETNAMESE STREET MARKET CANVAS -->
+    <canvas id="street-canvas"></canvas>
+
+    <!-- COMPACT TOP-RIGHT CONTROL CLUSTER ONLY (NO TOP-LEFT TITLE BANNER) -->
+    <nav class="fixed top-3 right-3 z-20 flex flex-wrap items-center justify-end gap-2 pointer-events-none">
+        <!-- Main Summon UFO Button -->
+        <button id="btn-summon-ufo" class="pointer-events-auto arcade-btn bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400 text-indigo-950 font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 tracking-wide uppercase">
+            <i class="ph-fill ph-flying-saucer text-xl"></i>
+            <span>TRIỆU HỒI UFO</span>
+        </button>
+
+        <!-- Participant, Boss UFO & Settings Drawer Button -->
+        <button id="btn-open-roster" class="pointer-events-auto arcade-btn bg-cyan-400 text-indigo-950 px-3.5 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center gap-1.5">
+            <i class="ph-bold ph-users-three text-lg"></i>
+            <span>Cư Dân & UFO (<span id="badge-total-count">0</span>)</span>
+        </button>
+
+        <!-- Abduction History Log Drawer Button -->
+        <button id="btn-open-history" class="pointer-events-auto arcade-btn bg-purple-500 text-white px-3.5 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1.5">
+            <i class="ph-bold ph-clock-counter-clockwise text-lg"></i>
+            <span class="hidden sm:inline">Nhật Ký</span>
+            <span id="badge-history-count" class="bg-indigo-950 text-amber-300 px-1.5 py-0.5 rounded-full text-[11px] font-black">0</span>
+        </button>
+
+        <!-- Sound Toggle -->
+        <button id="btn-sound" class="pointer-events-auto arcade-btn bg-amber-400 text-indigo-950 w-10 h-10 rounded-xl flex items-center justify-center text-lg" title="Bật / Tắt Âm Thanh">
+            <i id="icon-sound" class="ph-fill ph-speaker-high"></i>
+        </button>
+    </nav>
+
+    <!-- SUBTLE CAMERA PAN CONTROLS AT VERY BOTTOM (FOR 3400px WIDE MAP) -->
+    <div class="fixed bottom-2.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-slate-900/75 backdrop-blur-xs border-2 border-indigo-950 px-3 py-1.5 rounded-full shadow-lg pointer-events-auto">
+        <button id="btn-pan-left" class="w-7 h-7 rounded-full bg-amber-300 hover:bg-amber-400 text-indigo-950 border-2 border-indigo-950 flex items-center justify-center font-black text-sm active:scale-90 transition cursor-pointer" title="Lướt sang trái">
+            <i class="ph-bold ph-caret-left"></i>
+        </button>
+        <input id="slider-camera-pan" type="range" min="0" max="100" value="18" class="pan-slider w-36 sm:w-56" title="Kéo để xem toàn cảnh khu phố 3400px">
+        <button id="btn-pan-right" class="w-7 h-7 rounded-full bg-amber-300 hover:bg-amber-400 text-indigo-950 border-2 border-indigo-950 flex items-center justify-center font-black text-sm active:scale-90 transition cursor-pointer" title="Lướt sang phải">
+            <i class="ph-bold ph-caret-right"></i>
+        </button>
+    </div>
+
+    <!-- BACKDROP FOR DRAWERS -->
+    <div id="drawer-backdrop" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-30 hidden opacity-0 transition-opacity duration-200"></div>
+
+    <!-- LEFT DRAWER: SMOOTH ABDUCTION HISTORY ("NHẬT KÝ BẮT CÓC") -->
+    <aside id="drawer-history" class="gpu-drawer drawer-left-closed fixed top-0 left-0 bottom-0 w-full max-w-md bg-slate-900 border-r-4 border-indigo-950 z-40 flex flex-col shadow-2xl">
+        <div class="p-4 bg-gradient-to-r from-purple-700 to-indigo-800 border-b-4 border-indigo-950 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-xl bg-amber-300 text-indigo-950 border-2 border-indigo-950 flex items-center justify-center font-black text-xl">
+                    <i class="ph-fill ph-notebook"></i>
+                </div>
+                <div>
+                    <h2 class="text-white font-black text-base uppercase tracking-wide">Nhật Ký Bắt Cóc</h2>
+                    <p class="text-purple-200 text-xs font-medium">Lịch sử các lượt UFO Sếp ghé khu phố</p>
+                </div>
+            </div>
+            <button id="btn-close-history" class="w-9 h-9 rounded-xl bg-slate-900/50 hover:bg-rose-500 text-white flex items-center justify-center transition cursor-pointer">
+                <i class="ph-bold ph-x text-lg"></i>
+            </button>
+        </div>
+
+        <div class="p-3 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between gap-2">
+            <button id="btn-copy-history" class="arcade-btn bg-emerald-400 text-indigo-950 px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5">
+                <i class="ph-bold ph-copy"></i>
+                <span>Sao Chép Kết Quả</span>
+            </button>
+            <button id="btn-clear-history" class="arcade-btn bg-rose-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5">
+                <i class="ph-bold ph-trash"></i>
+                <span>Xóa Lịch Sử</span>
+            </button>
+        </div>
+
+        <div id="history-list" class="flex-1 overflow-y-auto custom-scroll p-4 space-y-3"></div>
+    </aside>
+
+    <!-- RIGHT DRAWER: BOSS UFO CUSTOMIZER + PARTICIPANT ROSTER & SETTINGS -->
+    <aside id="drawer-roster" class="gpu-drawer drawer-right-closed fixed top-0 right-0 bottom-0 w-full max-w-md bg-slate-900 border-l-4 border-indigo-950 z-40 flex flex-col shadow-2xl">
+        <div class="p-4 bg-gradient-to-r from-cyan-500 to-blue-600 border-b-4 border-indigo-950 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-xl bg-amber-300 text-indigo-950 border-2 border-indigo-950 flex items-center justify-center font-black text-xl">
+                    <i class="ph-fill ph-flying-saucer"></i>
+                </div>
+                <div>
+                    <h2 class="text-white font-black text-base uppercase tracking-wide">Cài Đặt UFO & Cư Dân</h2>
+                    <p class="text-cyan-100 text-xs font-medium">Cài ảnh Sếp lái UFO & danh sách nhân viên</p>
+                </div>
+            </div>
+            <button id="btn-close-roster" class="w-9 h-9 rounded-xl bg-slate-900/50 hover:bg-rose-500 text-white flex items-center justify-center transition cursor-pointer">
+                <i class="ph-bold ph-x text-lg"></i>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto custom-scroll p-4 space-y-4">
+
+            <!-- CARD 1: CUSTOMIZABLE UFO PILOT (BOSS / SẾP) -->
+            <div class="bg-gradient-to-br from-indigo-950 via-slate-800 to-purple-950 border-2 border-amber-400 rounded-2xl p-3.5 space-y-3 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-amber-300 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="ph-fill ph-crown text-base"></i> NGƯỜI NGỒI LÁI UFO (SẾP / BOSS)
+                    </h3>
+                    <span class="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full text-[10px] font-bold">Lái Đĩa Bay</span>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <!-- Boss Avatar Upload -->
+                    <label class="relative w-16 h-16 rounded-full border-3 border-amber-300 bg-slate-900 flex items-center justify-center cursor-pointer overflow-hidden shrink-0 group shadow-md" title="Bấm để đổi ảnh mặt người lái UFO">
+                        <img id="preview-boss-img" class="w-full h-full object-cover" alt="Boss Pilot">
+                        <div class="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-amber-300 transition">
+                            <i class="ph-bold ph-camera-rotate text-lg"></i>
+                            <span class="text-[9px] font-bold">Đổi Ảnh</span>
+                        </div>
+                        <input id="input-boss-file" type="file" accept="image/*" class="hidden">
+                    </label>
+
+                    <div class="flex-1 space-y-2">
+                        <div>
+                            <label class="block text-slate-300 text-[10px] font-bold mb-0.5">Tên Người Lái UFO (Sếp / HR):</label>
+                            <input id="input-boss-name" type="text" value="Sếp Tổng" placeholder="VD: Sếp Tổng, Chị HR..." class="w-full bg-slate-900 border-2 border-slate-600 focus:border-amber-400 rounded-xl px-2.5 py-1.5 text-amber-300 font-black text-xs outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 text-[10px] font-bold mb-0.5">Câu Hô Loa Khi Bắt Cóc:</label>
+                            <input id="input-boss-slogan" type="text" value="Lên đĩa bay nhận dự án mới nào các em ơi!" placeholder="Nhập câu nói phát loa từ UFO..." class="w-full bg-slate-900 border-2 border-slate-600 focus:border-amber-400 rounded-xl px-2.5 py-1.5 text-white font-semibold text-xs outline-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CARD 2: GAME SETTINGS -->
+            <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-3.5 space-y-3">
+                <h3 class="text-cyan-300 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="ph-fill ph-sliders-horizontal text-base"></i> Cấu Hình Lượt Bắt Cóc
+                </h3>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-300 text-xs font-bold mb-1">Số người bị bắt / lượt</label>
+                        <input id="input-abduct-count" type="number" min="1" max="50" value="1" class="w-full bg-slate-900 border-2 border-slate-600 focus:border-amber-400 rounded-xl px-3 py-2 text-white font-black text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 text-xs font-bold mb-1">Chế độ tia hút</label>
+                        <select id="select-abduct-mode" class="w-full bg-slate-900 border-2 border-slate-600 focus:border-amber-400 rounded-xl px-2.5 py-2 text-white font-bold text-xs outline-none">
+                            <option value="sequential">Từng người + Nhá hàng thả rơi</option>
+                            <option value="simultaneous">Hút cùng lúc</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label class="flex items-center justify-between gap-2 pt-1 cursor-pointer">
+                    <span class="text-slate-200 text-xs font-bold">Ẩn người đã bị bắt ở lượt tiếp theo</span>
+                    <input id="toggle-hide-abducted" type="checkbox" checked class="w-5 h-5 accent-emerald-400 rounded cursor-pointer">
+                </label>
+            </div>
+
+            <!-- CARD 3: ADD NEW RESIDENT -->
+            <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-3.5 space-y-3">
+                <h3 class="text-emerald-400 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="ph-fill ph-user-plus text-base"></i> Thêm Cư Dân / Nhân Viên Mới
+                </h3>
+
+                <div class="flex items-center gap-3">
+                    <label class="relative w-16 h-16 rounded-full border-3 border-emerald-400 bg-slate-900 flex items-center justify-center cursor-pointer overflow-hidden shrink-0 group shadow-md">
+                        <img id="preview-upload-img" class="w-full h-full object-cover hidden" alt="Preview">
+                        <div id="preview-upload-placeholder" class="flex flex-col items-center text-slate-400 group-hover:text-emerald-300">
+                            <i class="ph-bold ph-camera-plus text-xl"></i>
+                            <span class="text-[10px] font-bold">Ảnh mặt</span>
+                        </div>
+                        <input id="input-face-file" type="file" accept="image/*" class="hidden">
+                    </label>
+
+                    <div class="flex-1 space-y-2">
+                        <input id="input-person-name" type="text" placeholder="Nhập tên cư dân / đồng nghiệp..." class="w-full bg-slate-900 border-2 border-slate-600 focus:border-emerald-400 rounded-xl px-3 py-2 text-white font-bold text-xs outline-none">
+                        <select id="select-person-outfit" class="w-full bg-slate-900 border-2 border-slate-600 rounded-xl px-2.5 py-1.5 text-slate-200 font-semibold text-xs outline-none">
+                            <option value="-1">👕 Trang phục Chibi ngẫu nhiên</option>
+                            <option value="0">1. Hoodie Kem + Túi Đeo Chéo + Quần Rêu (Mẫu)</option>
+                            <option value="1">2. Áo Khoác Varsity Đỏ + Chân Váy Xếp Ly</option>
+                            <option value="2">3. Áo Len Pastel + Yếm Jean Năng Động</option>
+                            <option value="3">4. Áo Thun Oversize Mint + Quần Cargo</option>
+                            <option value="4">5. Đồ Bảo Hộ Công Nhân Xanh</option>
+                            <option value="5">6. Áo Dài Cách Tân Dạo Phố</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button id="btn-add-person" class="arcade-btn w-full bg-emerald-400 text-indigo-950 font-black text-xs py-2.5 rounded-xl flex items-center justify-center gap-1.5 uppercase">
+                    <i class="ph-bold ph-plus-circle text-base"></i>
+                    <span>Thêm Vào Khu Phố</span>
+                </button>
+            </div>
+
+            <!-- QUICK BATCH ACTIONS -->
+            <div class="grid grid-cols-3 gap-2">
+                <button id="btn-load-demo" class="arcade-btn bg-amber-300 text-indigo-950 font-black text-[11px] py-2 px-2 rounded-xl flex items-center justify-center gap-1">
+                    <i class="ph-bold ph-sparkle"></i> Mẫu 18 Người
+                </button>
+                <button id="btn-restore-all" class="arcade-btn bg-indigo-500 text-white font-bold text-[11px] py-2 px-2 rounded-xl flex items-center justify-center gap-1">
+                    <i class="ph-bold ph-arrows-counter-clockwise"></i> Hồi Phục Đủ
+                </button>
+                <button id="btn-clear-all" class="arcade-btn bg-rose-500 text-white font-bold text-[11px] py-2 px-2 rounded-xl flex items-center justify-center gap-1">
+                    <i class="ph-bold ph-trash"></i> Xóa Hết
+                </button>
+            </div>
+
+            <!-- ROSTER LIST -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-slate-300 font-bold text-xs">Danh sách cư dân (<span id="roster-count-label">0</span>)</span>
+                    <span class="text-slate-400 text-[11px]">Bấm mắt để ẩn/hiện</span>
+                </div>
+                <div id="roster-list" class="space-y-2"></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- WINNERS CELEBRATION MODAL ("DANH SÁCH NGƯỜI BỊ BẮT CÓC") -->
+    <div id="modal-winners" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div class="bg-slate-900 border-4 border-indigo-950 rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl">
+            <div class="p-5 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 border-b-4 border-indigo-950 text-center relative">
+                <div class="inline-flex items-center gap-2 bg-indigo-950 text-amber-300 px-3.5 py-1 rounded-full text-xs font-black uppercase mb-1.5">
+                    <img id="modal-boss-avatar" src="" class="w-5 h-5 rounded-full object-cover border border-amber-300" alt="Boss">
+                    <span id="modal-boss-title">Tàu Mẹ Của Sếp Tổng</span>
+                </div>
+                <h2 class="text-indigo-950 font-black text-xl sm:text-2xl uppercase tracking-tight">
+                    DANH SÁCH NGƯỜI BỊ BẮT CÓC!
+                </h2>
+            </div>
+
+            <div class="p-5 max-h-[60vh] overflow-y-auto custom-scroll">
+                <div id="winners-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5"></div>
+            </div>
+
+            <div class="p-4 bg-slate-800 border-t-2 border-slate-700 flex flex-wrap items-center justify-end gap-2.5">
+                <button id="btn-reroll-round" class="arcade-btn bg-amber-300 text-indigo-950 font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl flex items-center gap-1.5">
+                    <i class="ph-bold ph-arrows-clockwise text-base"></i>
+                    <span>Bốc Lại Lượt Này</span>
+                </button>
+                <button id="btn-close-winners" class="arcade-btn bg-emerald-400 text-indigo-950 font-black text-xs sm:text-sm px-5 py-2.5 rounded-xl flex items-center gap-1.5">
+                    <i class="ph-bold ph-check-circle text-base"></i>
+                    <span>Xác Nhận & Tiếp Tục</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast-box" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-opacity duration-200 bg-indigo-950 text-amber-300 border-2 border-amber-400 px-4 py-2 rounded-full font-bold text-xs shadow-xl">
+        Đã lưu!
+    </div>
+
+    <script>
+        /**************************************************************************
+         * 1. WORLD CONSTANTS, 9 SHOPS, SHOPKEEPER NPCs & DIALOGUES
+         **************************************************************************/
+        const WORLD_WIDTH = 3400; // Expansive 3400px panoramic street market!
+        const CHIBI_BASE_SCALE = 0.66; // Compact Chibi scale so 15-30 characters look spacious & readable
+        const FONT_STACK = "'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif";
+
+        // 9 Detailed Vietnamese Storefront Zones across the 3400px Map + Dedicated Shopkeeper NPCs
+        const TOWN_SHOPS = [
+            {
+                id: 'job_center',
+                name: 'Môi Giới Việc Làm',
+                x: 80,
+                w: 310,
+                visitMinX: 110,
+                visitMaxX: 350,
+                prop: 'clipboard',
+                badgeIcon: '📋',
+                badgeBg: '#ec4899',
+                keeper: {
+                    name: 'Cô Thu H·S',
+                    wx: 185,
+                    wyOffset: -10,
+                    outfitColor: '#be185d',
+                    hatType: 'glasses',
+                    idleQuotes: [
+                        "Ai tìm việc nhẹ lương cao ghé bàn H·S nha!",
+                        "Tuyển gấp 10 bạn phụ bán Chợ Đầu Mối!",
+                        "Hồ sơ xin việc đóng mộc cái rụp là đi làm luôn!"
+                    ]
+                },
+                dialogues: [
+                    { keeper: "Em tìm việc gì? Có suất ngồi máy lạnh lương cao nè!", resident: "Dạ cho em đăng ký 1 suất, miễn đừng bị UFO bắt là được!" },
+                    { keeper: "Cầm tờ hồ sơ H·S này qua Chợ Đầu Mối nhận việc nha!", resident: "Dạ cảm ơn Cô Thu, em chạy qua bển liền đây!" },
+                    { keeper: "Tuyển nhân viên trông xe tay ga bên Hôn-đa Tí Sún!", resident: "Kèo này thơm quá, để em nộp đơn phỏng vấn liền!" }
+                ]
+            },
+            {
+                id: 'cho_dau_moi',
+                name: 'Chợ Đầu Mối',
+                x: 450,
+                w: 520,
+                visitMinX: 480,
+                visitMaxX: 930,
+                prop: 'basket',
+                badgeIcon: '🛍️',
+                badgeBg: '#22c55e',
+                keeper: {
+                    name: 'Bà Tư Rổ Rá',
+                    wx: 710,
+                    wyOffset: -8,
+                    outfitColor: '#d97706',
+                    hatType: 'non_la',
+                    idleQuotes: [
+                        "Thau nhựa, rổ tre đan bền đẹp giá sỉ Chợ Đầu Mối đây!",
+                        "Mại dô bà con ơi, mua 2 cái rổ tặng 1 cái rá!",
+                        "Hàng nhựa dẻo đập không bể, nắng không phai màu!"
+                    ]
+                },
+                dialogues: [
+                    { keeper: "Mua rổ tre hay thau nhựa về đựng rau vậy con?", resident: "Bà Tư lấy con cái rổ tre đan với thau đỏ nha!" },
+                    { keeper: "Rổ rá Chợ Đầu Mối đan tay kỹ lắm, xài 10 năm chưa hư!", resident: "Công nhận bền thiệt, để con mua thêm cái nữa cho mẹ!" },
+                    { keeper: "Nay đi chợ sớm dữ hen, lựa thoải mái đi con!", resident: "Dạ tranh thủ mua lẹ kẻo đĩa bay của Sếp tới bắt!" }
+                ]
+            },
+            {
+                id: 'honda_ti_sun',
+                name: 'Hôn-đa Tí Sún',
+                x: 1030,
+                w: 390,
+                visitMinX: 1060,
+                visitMaxX: 1380,
+                prop: 'none',
+                badgeIcon: '🛵',
+                badgeBg: '#3b82f6',
+                keeper: {
+                    name: 'Huỳnh Lăn Bánh',
+                    wx: 1230,
+                    wyOffset: -6,
+                    outfitColor: '#2563eb',
+                    hatType: 'cap',
+                    idleQuotes: [
+                        "Cơ hội sở hữu xe tay ga giá cà na nhiều ưu đãi!",
+                        "Đi chợ khuyến mãi khỏi chờ lâu mà đi đâu cũng sành điệu!",
+                        "Hôn-đa Tí Sún 114 Trường Chinh - Nhanh tay hốt ngay nà!"
+                    ]
+                },
+                dialogues: [
+                    { keeper: "Cơ hội sở hữu xe tay ga giá cà na nhiều ưu đãi! Hốt ngay nà!", resident: "Chiếc tay ga màu xanh đẹp xỉu, trả góp 0 đồng hả anh?" },
+                    { keeper: "Xe đời mới đề cái nổ êm ru, chạy đi chợ hết nước chấm!", resident: "Đợi cuối tháng lãnh lương em ra 114 Trường Chinh chốt liền!" },
+                    { keeper: "Mua xe hôm nay tặng kèm mũ bảo hiểm chống tia UFO luôn!", resident: "Thiệt hả anh Huỳnh Lăn Bánh? Nghe uy tín dữ!" }
+                ]
+            },
+            {
+                id: 'bun_bo_tu_heo',
+                name: 'Bún Bò Tư Heo',
+                x: 1470,
+                w: 280,
+                visitMinX: 1480,
+                visitMaxX: 1720,
+                prop: 'noodle_bowl',
+                badgeIcon: '🍜',
+                badgeBg: '#ef4444',
+                keeper: {
+                    name: 'Cô Tư Heo',
+                    wx: 1625,
+                    wyOffset: 6,
+                    outfitColor: '#f8fafc',
+                    hatType: 'non_la',
+                    idleQuotes: [
+                        "Bún bò Tư Heo nước lèo ninh xương ngọt lịm kính mời!",
+                        "Ai bún bò giò gân, chả cua nóng hổi vừa thổi vừa ăn hôn!",
+                        "Ngồi bàn nhựa đỏ xanh đợi cô múc tô đặc biệt nha!"
+                    ]
+                },
+                dialogues: [
+                    { keeper: "Tô đặc biệt giò gân chả cua của cưng có liền đây!", resident: "Nước lèo Bún Bò Tư Heo thơm nức mũi, cho em xin thêm ớt!" },
+                    { keeper: "Ăn no đi con, cô khuyến mãi thêm cục huyết bự chảng!", resident: "Đỉnh của chóp Cô Tư ơi, ngày nào cũng phải ghé làm 1 tô!" },
+                    { keeper: "Trời này húp miếng nước bún bò cay cay là sướng nhất!", resident: "Ăn lẹ lấy sức lát còn chạy trốn UFO của Sếp!" }
+                ]
+            },
+            {
+                id: 'tiem_vang',
+                name: 'Tiệm Vàng Kim Phát',
+                x: 1800,
+                w: 320,
+                visitMinX: 1820,
+                visitMaxX: 2090,
+                prop: 'none',
+                badgeIcon: '💎',
+                badgeBg: '#eab308',
+                keeper: {
+                    name: 'Ông Chủ Kim Phát',
+                    wx: 1960,
+                    wyOffset: -10,
+                    outfitColor: '#b91c1c',
+                    hatType: 'glasses',
+                    idleQuotes: [
+                        "Vàng 9999 sáng lấp lánh, mua tích trữ lấy hên bà con ơi!",
+                        "Nhẫn kim tiền, dây chuyền vàng tây mẫu mới về ngập tủ!",
+                        "Tiệm Vàng Kim Phát uy tín nhất khu phố Chợ Đầu Mối!"
+                    ]
+                },
+                dialogues: [
+                    { keeper: "Mua chỉ vàng 9999 cất tủ lấy vía thần tài nha cháu!", resident: "Ông chủ cho cháu coi sợi dây chuyền lấp lánh kia với!" },
+                    { keeper: "Giá vàng hôm nay đang đẹp, chốt 2 lượng luôn hen?", resident: "Cháu ngắm lấy động lực cày cuốc trước đã ông chủ ơi!" }
+                ]
+            },
+            {
+                id: 'tra_sua_net',
+                name: 'Trà Sữa & Net Cỏ 24/7',
+                x: 2170,
+                w: 330,
+                visitMinX: 2190,
+                visitMaxX: 2470,
+                prop: 'boba',
+                badgeIcon: '🧋',
+                badgeBg: '#a855f7',
+                keeper: {
+                    name: 'Em Linh Pha Chế',
+                    wx: 2335,
+                    wyOffset: -10,
+                    outfitColor: '#10b981',
+                    hatType: 'vis_cap',
+                    idleQuotes: [
+                        "Trà sữa trân châu đường đen full topping mát lạnh đây!",
+                        "Combo 1 giờ chơi Net Cỏ + 1 ly trà tắc khổng lồ chỉ 20k!",
+                        "Trà đào cam sả giải nhiệt mùa hè mại dô anh chị ơi!"
+                    ]
+                },
+                dialogues: [
+                    { keeper: "Của anh chị 1 trà sữa trân châu hoàng kim ít đá 50% đường!", resident: "Trân châu dai giòn sần sật, uống miếng tỉnh cả người!" },
+                    { keeper: "Mở máy số 8 chiến game hay ngồi uống trà sữa tám chuyện ạ?", resident: "Hút hết ly trà sữa này rồi vô làm ván game luôn em!" }
+                ]
+            },
+            {
+                id: 'dai_ly_ve_so',
+                name: 'Đại Lý Vé Số Đại Phát',
+                x: 2550,
+                w: 270,
+                visitMinX: 2570,
+                visitMaxX: 2800,
+                prop: 'lottery',
+                badgeIcon: '🎟️',
+                badgeBg: '#f97316',
+                keeper: {
+                    name: 'Thầy Lộc Vé Số',
+                    wx: 2685,
+                    wyOffset: -8,
+                    outfitColor: '#ea580c',
+                    hatType: 'glasses',
+                    idleQuotes: [
+                        "Vé số kiến thiết ích nước lợi nhà, chiều nay xổ độc đắc 2 tỷ!",
+                        "Cặp vé số đuôi 68 thần tài gõ cửa, hốt lẹ kẻo hết!",
+                        "Ai dò số, đổi số trúng thưởng ghé bàn Thầy Lộc nha!"
+                    ]
+                },
+                dialogues: [
+                    { keeper: "Lấy cặp vé số đuôi 79 thần tài lớn chiều nay đổi đời nè!", resident: "Thầy Lộc lựa cho con 2 tờ may mắn nhất bàn nha!" },
+                    { keeper: "Chiều nay 4 giờ rưỡi nhớ ra dò kết quả độc đắc nghen!", resident: "Trúng độc đắc con bao cả khu phố ăn Bún Bò Tư Heo luôn!" }
+                ]
+            },
+            {
+                id: 'hot_toc',
+                name: 'Hớt Tóc Thanh Niên',
+                x: 2870,
+                w: 260,
+                visitMinX: 2890,
+                visitMaxX: 3110,
+                prop: 'peace',
+                badgeIcon: '💈',
+                badgeBg: '#06b6d4',
+                keeper: {
+                    name: 'Chú Bảy Thợ Cạo',
+                    wx: 3000,
+                    wyOffset: -8,
+                    outfitColor: '#0284c7',
+                    hatType: 'none',
+                    idleQuotes: [
+                        "Hớt tóc Undercut, ráy tai êm ru ngủ quên lối về!",
+                        "Gội đầu bồ kết massage cổ vai gáy khỏe re bà con ơi!",
+                        "Làm quả đầu mới bóng mượt đẹp trai nhất khu phố!"
+                    ]
+                },
+                dialogues: [
+                    { keeper: "Tỉa mái bay Hàn Quốc hay cạo gọn gàng đi họp với Sếp đây?", resident: "Chú Bảy vuốt keo bóng lộn giúp con để lên UFO cho ngầu!" },
+                    { keeper: "Ráy tai có tiếng nhạc du dương êm tới nóc luôn hen!", resident: "Công nhận tay nghề Chú Bảy đỉnh thiệt, nhẹ cả cái đầu!" }
+                ]
+            },
+            {
+                id: 'tram_dan_pho',
+                name: 'Trạm Gác Dân Phố',
+                x: 3170,
+                w: 190,
+                visitMinX: 3140,
+                visitMaxX: 3340,
+                prop: 'broom',
+                badgeIcon: '🛡️',
+                badgeBg: '#14b8a6',
+                keeper: {
+                    name: 'Bác Bảo Vệ',
+                    wx: 3255,
+                    wyOffset: -6,
+                    outfitColor: '#0f766e',
+                    hatType: 'pith_helmet',
+                    idleQuotes: [
+                        "Giữ gìn an ninh trật tự, bà con đi chợ nhớ để ý đĩa bay!",
+                        "Khu phố văn hóa sạch đẹp, không lấn chiếm lòng lề đường!",
+                        "Camera an ninh và Loa Phường đang hoạt động 24/24!"
+                    ]
+                },
+                dialogues: [
+                    { keeper: "Tình hình khu phố trật tự tốt, nhưng coi chừng UFO trên trời!", resident: "Dạ cháu cầm chổi phụ bác quét dọn vỉa hè một tay!" },
+                    { keeper: "Bà con đi dạo phố vui vẻ, nghe loa phường thông báo nha!", resident: "Có Bác Bảo Vệ canh gác là tụi cháu yên tâm hẳn!" }
+                ]
+            }
+        ];
+
+        const PANIC_SPEECHES = [
+            "Á á UFO của Sếp bay tới kìa bà con ơi!! 😱",
+            "Chạy rối rít lên! Đĩa bay đang quét radar kìa! 🛸",
+            "Trốn vô sạp Chợ Đầu Mối mau anh em ơi! 🏃‍♂️",
+            "Bỏ tô bún bò xuống chạy lấy người thôi! 😭",
+            "Đừng nhìn lên trời, Sếp thấy là bị hút lên đó! ⚡",
+            "Cứu em với Cô Tư Heo, Chú Bảy ơi! 💨",
+            "UFO bắt đi tăng ca cuối tuần kìa chạy mau!! 🚨",
+            "Núp sau cột điện loa phường lẹ lên!! 🙈"
+        ];
+
+        const SHOPKEEPER_PANIC_SPEECHES = [
+            "Trời đất ơi đĩa bay của Sếp tới khu phố kìa!! 😱",
+            "Bà con cô bác chạy vô tiệm núp lẹ đi!! 🛸",
+            "Cất rổ rá, dẹp nồi nước lèo lẹ kẻo bay mất!! 💨",
+            "Loa phường báo động đỏ rồi anh em ơi!! 🚨"
+        ];
+
+        const FAKEOUT_LIFT_SCREAMS = [
+            "Á á á cứu tôi với!! Sao lại hút tôi?! 😱",
+            "Sếp ơi tha cho em, em còn chưa ăn hết tô bún bò!! 😭",
+            "Ối giời ơi cao quá, đừng bắt em Sếp ơi!! 🛸",
+            "Cứu mạng bà con ơi, chân tôi rời mặt đất rồi!! ⚡"
+        ];
+
+        const BOSS_FAKEOUT_DROP_QUOTES = [
+            "Ủa nhầm người rồi, thả xuống cái bịch!",
+            "Chú em này nặng quá rớt KPI, bỏ qua!",
+            "Thôi tha mạng cho chú em này, kiếm người khác!",
+            "Tín hiệu báo chưa tới số, thả rơi tự do luôn!"
+        ];
+
+        const DROPPED_RELIEF_QUOTES = [
+            "Ui da cái mông của tôi!! Đau điếng mà mừng rớt nước mắt! 💫",
+            "BỊCH!! Hú hồn chim én, tưởng phải lên thớt rồi chứ! 😵‍💫",
+            "May quá Sếp tha mạng! Ngồi thở cái đã, ê ẩm cả mông! 😭",
+            "Trời ơi rơi từ lầu 3 xuống, cái bàn tọa của tôi!! ⭐"
+        ];
+
+        const CHIBI_OUTFITS = [
+            {
+                name: "Hoodie Kem & Quần Rêu (Mẫu)",
+                topColor: "#f3EFEA",
+                topShadow: "#ded6cc",
+                sleeveColor: "#f3EFEA",
+                bottomColor: "#5c6449",
+                bottomShadow: "#434a34",
+                shoeColor: "#f8fafc",
+                shoeAccent: "#cbd5e1",
+                hasCrossbodyBag: true,
+                hasHoodieGraphic: true,
+                hasCargoPockets: true,
+                isSkirt: false
+            },
+            {
+                name: "Varsity Đỏ & Váy Xếp Ly",
+                topColor: "#e11d48",
+                topShadow: "#be123c",
+                sleeveColor: "#f8fafc",
+                bottomColor: "#1e293b",
+                bottomShadow: "#0f172a",
+                shoeColor: "#ffffff",
+                shoeAccent: "#f43f5e",
+                hasCrossbodyBag: true,
+                hasHoodieGraphic: false,
+                hasCargoPockets: false,
+                isSkirt: true
+            },
+            {
+                name: "Len Pastel & Yếm Jean",
+                topColor: "#fde047",
+                topShadow: "#facc15",
+                sleeveColor: "#fef08a",
+                bottomColor: "#3b82f6",
+                bottomShadow: "#1d4ed8",
+                shoeColor: "#f8fafc",
+                shoeAccent: "#60a5fa",
+                hasCrossbodyBag: false,
+                hasHoodieGraphic: true,
+                hasCargoPockets: true,
+                isSkirt: false
+            },
+            {
+                name: "Oversize Mint & Cargo Kem",
+                topColor: "#6ee7b7",
+                topShadow: "#34d399",
+                sleeveColor: "#6ee7b7",
+                bottomColor: "#d6d3d1",
+                bottomShadow: "#a8a29e",
+                shoeColor: "#f8fafc",
+                shoeAccent: "#10b981",
+                hasCrossbodyBag: true,
+                hasHoodieGraphic: true,
+                hasCargoPockets: true,
+                isSkirt: false
+            },
+            {
+                name: "Đồ Bảo Hộ Công Nhân Xanh",
+                topColor: "#2563eb",
+                topShadow: "#1d4ed8",
+                sleeveColor: "#3b82f6",
+                bottomColor: "#1e3a8a",
+                bottomShadow: "#172554",
+                shoeColor: "#e2e8f0",
+                shoeAccent: "#fbbf24",
+                hasCrossbodyBag: false,
+                hasHoodieGraphic: false,
+                hasCargoPockets: true,
+                isSkirt: false
+            },
+            {
+                name: "Áo Dài Cách Tân Dạo Phố",
+                topColor: "#f472b6",
+                topShadow: "#ec4899",
+                sleeveColor: "#fbcfe8",
+                bottomColor: "#f8fafc",
+                bottomShadow: "#e2e8f0",
+                shoeColor: "#ffffff",
+                shoeAccent: "#f472b6",
+                hasCrossbodyBag: true,
+                hasHoodieGraphic: false,
+                hasCargoPockets: false,
+                isSkirt: false
+            }
+        ];
+
+        const DEMO_NAMES = [
+            "Minh Anh", "Đức Huy", "Tuấn Kiệt", "Khánh Linh", "Hoàng Nam",
+            "Phương Thảo", "Bảo Ngọc", "Thùy Tiên", "Gia Hưng", "Quỳnh Như",
+            "Hải Đăng", "Trâm Anh", "Quốc Bảo", "Lan Hương", "Thành Đạt",
+            "Ngọc Bích", "Văn Toàn", "Mai Phương"
+        ];
+
+        const HAIR_COLORS = ["#1e1b4b", "#3f271d", "#5c3317", "#27272a", "#78350f", "#451a03"];
+
+        /**************************************************************************
+         * 2. PURE HTML5 CANVAS CHIBI & BOSS AVATAR GENERATOR (ZERO ENCODING ERRORS)
+         **************************************************************************/
+        const avatarCanvasCache = new Map();
+
+        function generateCleanChibiHeadDataUrl(seedIndex, isBoss = false) {
+            const c = document.createElement('canvas');
+            c.width = 160;
+            c.height = 160;
+            const g = c.getContext('2d');
+
+            const hairColor = isBoss ? "#1e1b4b" : HAIR_COLORS[seedIndex % HAIR_COLORS.length];
+            const hasGlasses = isBoss ? false : (seedIndex % 2 === 0);
+            const hasBun = !isBoss && (seedIndex % 3 !== 2);
+
+            const bgColors = ["#fef3c7", "#e0f2fe", "#fce7f3", "#dcfce7", "#ede9fe"];
+            g.fillStyle = isBoss ? "#fef08a" : bgColors[seedIndex % bgColors.length];
+            g.beginPath();
+            g.arc(80, 80, 78, 0, Math.PI * 2);
+            g.fill();
+
+            // Back Hair
+            g.fillStyle = hairColor;
+            if (hasBun) {
+                g.beginPath();
+                g.arc(118, 34, 24, 0, Math.PI * 2);
+                g.fill();
+            }
+            g.beginPath();
+            g.arc(80, 78, 60, 0, Math.PI * 2);
+            g.fill();
+
+            // Ears
+            g.fillStyle = "#fde2c8";
+            g.beginPath();
+            g.arc(26, 88, 12, 0, Math.PI * 2);
+            g.arc(134, 88, 12, 0, Math.PI * 2);
+            g.fill();
+
+            // Face
+            g.fillStyle = "#ffedd5";
+            g.beginPath();
+            g.arc(80, 85, 52, 0, Math.PI * 2);
+            g.fill();
+
+            // Rosy Cheeks
+            g.fillStyle = "rgba(251, 113, 133, 0.42)";
+            g.beginPath();
+            g.ellipse(50, 96, 11, 6.5, 0, 0, Math.PI * 2);
+            g.ellipse(110, 96, 11, 6.5, 0, 0, Math.PI * 2);
+            g.fill();
+
+            if (isBoss) {
+                // Cool Boss Sunglasses + Smirk
+                g.fillStyle = "#0f172a";
+                g.strokeStyle = "#f59e0b";
+                g.lineWidth = 3;
+                g.fillRect(36, 70, 38, 22);
+                g.strokeRect(36, 70, 38, 22);
+                g.fillRect(86, 70, 38, 22);
+                g.strokeRect(86, 70, 38, 22);
+                g.beginPath();
+                g.moveTo(74, 78);
+                g.lineTo(86, 78);
+                g.stroke();
+
+                g.strokeStyle = "rgba(255,255,255,0.6)";
+                g.lineWidth = 2.5;
+                g.beginPath();
+                g.moveTo(42, 86); g.lineTo(54, 74);
+                g.moveTo(92, 86); g.lineTo(104, 74);
+                g.stroke();
+
+                g.fillStyle = "#ffffff";
+                g.strokeStyle = "#1e1b4b";
+                g.lineWidth = 2.5;
+                g.beginPath();
+                g.arc(80, 102, 13, 0, Math.PI);
+                g.closePath();
+                g.fill();
+                g.stroke();
+            } else {
+                // Cute Chibi Eyes
+                g.fillStyle = "#1e1b4b";
+                g.beginPath();
+                g.ellipse(58, 82, 7.5, 8.5, 0, 0, Math.PI * 2);
+                g.ellipse(102, 82, 7.5, 8.5, 0, 0, Math.PI * 2);
+                g.fill();
+
+                g.fillStyle = "#ffffff";
+                g.beginPath();
+                g.arc(55, 79, 2.8, 0, Math.PI * 2);
+                g.arc(99, 79, 2.8, 0, Math.PI * 2);
+                g.fill();
+
+                // Coral Smile
+                g.fillStyle = "#f43f5e";
+                g.beginPath();
+                g.arc(80, 104, 7, 0, Math.PI);
+                g.fill();
+            }
+
+            // Fringe Bangs
+            g.fillStyle = hairColor;
+            g.beginPath();
+            g.arc(80, 66, 55, Math.PI * 1.08, Math.PI * 1.92);
+            g.lineTo(122, 68);
+            g.quadraticCurveTo(105, 48, 95, 70);
+            g.quadraticCurveTo(80, 45, 72, 70);
+            g.quadraticCurveTo(55, 48, 38, 68);
+            g.closePath();
+            g.fill();
+
+            if (hasGlasses) {
+                g.strokeStyle = "#cbd5e1";
+                g.lineWidth = 3;
+                g.beginPath();
+                g.arc(57, 83, 17, 0, Math.PI * 2);
+                g.moveTo(74, 83);
+                g.lineTo(86, 83);
+                g.arc(103, 83, 17, 0, Math.PI * 2);
+                g.stroke();
+
+                g.strokeStyle = "#475569";
+                g.lineWidth = 1.4;
+                g.beginPath();
+                g.arc(57, 83, 17, 0, Math.PI * 2);
+                g.arc(103, 83, 17, 0, Math.PI * 2);
+                g.stroke();
+            }
+
+            return c.toDataURL('image/png');
+        }
+
+        function getAvatarImageElement(src, fallbackSeed = 0, isBoss = false) {
+            const key = src || (isBoss ? 'boss_default' : `seed_${fallbackSeed}`);
+            if (avatarCanvasCache.has(key)) return avatarCanvasCache.get(key);
+
+            const img = new Image();
+            if (src && src.startsWith('data:image/')) {
+                img.src = src;
+            } else {
+                img.src = generateCleanChibiHeadDataUrl(fallbackSeed, isBoss);
+            }
+            avatarCanvasCache.set(key, img);
+            return img;
+        }
+
+        /**************************************************************************
+         * 3. WEB AUDIO API PROCEDURAL SOUND SYNTHESIZER (WITH SCAN, DROP & THUD!)
+         **************************************************************************/
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        function ensureAudio() {
+            if (!soundEnabled) return null;
+            if (!audioCtx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (AC) audioCtx = new AC();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            return audioCtx;
+        }
+
+        function playSfx(type) {
+            const ctxA = ensureAudio();
+            if (!ctxA) return;
+            const now = ctxA.currentTime;
+
+            if (type === 'pop') {
+                const osc = ctxA.createOscillator();
+                const gain = ctxA.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(520, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.09);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.09);
+                osc.connect(gain);
+                gain.connect(ctxA.destination);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'siren') {
+                const osc = ctxA.createOscillator();
+                const gain = ctxA.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(320, now);
+                osc.frequency.linearRampToValueAtTime(720, now + 0.4);
+                osc.frequency.linearRampToValueAtTime(310, now + 0.85);
+                gain.gain.setValueAtTime(0.09, now);
+                gain.gain.linearRampToValueAtTime(0.005, now + 0.9);
+                osc.connect(gain);
+                gain.connect(ctxA.destination);
+                osc.start(now);
+                osc.stop(now + 0.9);
+            } else if (type === 'scan_ping') {
+                const osc = ctxA.createOscillator();
+                const gain = ctxA.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(660, now);
+                osc.frequency.exponentialRampToValueAtTime(990, now + 0.18);
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.005, now + 0.22);
+                osc.connect(gain);
+                gain.connect(ctxA.destination);
+                osc.start(now);
+                osc.stop(now + 0.23);
+            } else if (type === 'beam') {
+                const osc = ctxA.createOscillator();
+                const gain = ctxA.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(190, now);
+                osc.frequency.exponentialRampToValueAtTime(760, now + 1.8);
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.linearRampToValueAtTime(0.008, now + 1.9);
+                osc.connect(gain);
+                gain.connect(ctxA.destination);
+                osc.start(now);
+                osc.stop(now + 1.95);
+            } else if (type === 'power_down') {
+                // UFO sputter & cancel beam sound
+                const osc = ctxA.createOscillator();
+                const gain = ctxA.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(620, now);
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.45);
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.linearRampToValueAtTime(0.005, now + 0.48);
+                osc.connect(gain);
+                gain.connect(ctxA.destination);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else if (type === 'thud') {
+                // Heavy "BỊCH!!" impact when hitting the pavement
+                const osc = ctxA.createOscillator();
+                const gain = ctxA.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(145, now);
+                osc.frequency.exponentialRampToValueAtTime(34, now + 0.28);
+                gain.gain.setValueAtTime(0.28, now);
+                gain.gain.exponentialRampToValueAtTime(0.008, now + 0.3);
+                osc.connect(gain);
+                gain.connect(ctxA.destination);
+                osc.start(now);
+                osc.stop(now + 0.32);
+            } else if (type === 'win') {
+                const notes = [523.25, 659.25, 783.99, 1046.5];
+                notes.forEach((freq, idx) => {
+                    const osc = ctxA.createOscillator();
+                    const gain = ctxA.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+                    gain.gain.setValueAtTime(0.14, now + idx * 0.09);
+                    gain.gain.exponentialRampToValueAtTime(0.008, now + idx * 0.09 + 0.35);
+                    osc.connect(gain);
+                    gain.connect(ctxA.destination);
+                    osc.start(now + idx * 0.09);
+                    osc.stop(now + idx * 0.09 + 0.36);
+                });
+            }
+        }
+
+        /**************************************************************************
+         * 4. STATE, BOSS UFO CONFIG, SHOPKEEPER NPCs & DUST PARTICLES
+         **************************************************************************/
+        const STORAGE_KEY = 'ufo_cho_dau_moi_3400_v6';
+        let participants = [];
+        let abductionHistory = [];
+        let settings = {
+            abductCount: 1,
+            hideAbducted: true,
+            abductMode: 'sequential'
+        };
+        let ufoBoss = {
+            name: "Sếp Tổng",
+            slogan: "Lên đĩa bay nhận việc mới nào các em ơi!",
+            avatar: generateCleanChibiHeadDataUrl(99, true),
+            overrideQuote: null
+        };
+
+        let actors = new Map();
+        let shopkeeperActors = [];
+        let floatingEmotes = [];
+        let dustParticles = [];
+        let isAbductingSequence = false;
+        let lastRoundWinnerIds = [];
+
+        // Camera Panning State across 3400px World
+        let cameraX = 320;
+        let targetCameraX = 320;
+        let isDraggingCamera = false;
+        let dragStartX = 0;
+        let dragStartCameraX = 0;
+
+        const SKY_THEMES = [
+            { id: 'day', topSky: '#38bdf8', midSky: '#93c5fd', botSky: '#fef9c3' },
+            { id: 'afternoon', topSky: '#0284c7', midSky: '#7dd3fc', botSky: '#fde68a' },
+            { id: 'sunset', topSky: '#312e81', midSky: '#c026d3', botSky: '#fdba74' }
+        ];
+        let currentSkyTheme = SKY_THEMES[0];
+
+        function randomizeSkyTheme() {
+            currentSkyTheme = SKY_THEMES[Math.floor(Math.random() * SKY_THEMES.length)];
+        }
+
+        function spawnDustBurst(wx, wy) {
+            for (let i = 0; i < 14; i++) {
+                const angle = Math.PI + (Math.random() - 0.5) * Math.PI * 0.95;
+                const spd = 35 + Math.random() * 95;
+                dustParticles.push({
+                    wx: wx + (Math.random() - 0.5) * 20,
+                    wy: wy,
+                    vx: Math.cos(angle) * spd,
+                    vy: -Math.abs(Math.sin(angle)) * spd * 0.55 - 12,
+                    radius: 6 + Math.random() * 9,
+                    life: 0,
+                    maxLife: 0.55 + Math.random() * 0.35
+                });
+            }
+        }
+
+        function initShopkeeperNpcs() {
+            shopkeeperActors = TOWN_SHOPS.map((shop, idx) => ({
+                shopId: shop.id,
+                shop: shop,
+                name: shop.keeper.name,
+                wx: shop.keeper.wx,
+                wyOffset: shop.keeper.wyOffset,
+                outfitColor: shop.keeper.outfitColor,
+                hatType: shop.keeper.hatType,
+                seed: 100 + idx,
+                avatar: generateCleanChibiHeadDataUrl(100 + idx, false),
+                bobPhase: idx * 1.1,
+                dir: 1,
+                speechText: shop.keeper.idleQuotes[0],
+                speechTimer: 3 + (idx % 4),
+                idleCooldown: 4 + (idx % 5) * 1.8
+            }));
+        }
+
+        function createDemoParticipants() {
+            return DEMO_NAMES.map((name, idx) => ({
+                id: 'p_' + Date.now() + '_' + idx,
+                name: name,
+                avatar: generateCleanChibiHeadDataUrl(idx, false),
+                outfitIndex: idx % CHIBI_OUTFITS.length,
+                abducted: false,
+                seed: idx
+            }));
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    participants,
+                    abductionHistory,
+                    settings,
+                    ufoBoss: {
+                        name: ufoBoss.name,
+                        slogan: ufoBoss.slogan,
+                        avatar: ufoBoss.avatar
+                    }
+                }));
+            } catch (e) {
+                console.warn('Storage warning:', e);
+            }
+        }
+
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed.participants) && parsed.participants.length > 0) {
+                        participants = parsed.participants.map((p, idx) => ({
+                            id: p.id || ('p_' + idx),
+                            name: String(p.name || ('Cư Dân ' + (idx + 1))),
+                            avatar: (p.avatar && p.avatar.startsWith('data:image/'))
+                                ? p.avatar
+                                : generateCleanChibiHeadDataUrl(idx, false),
+                            outfitIndex: typeof p.outfitIndex === 'number' ? p.outfitIndex : (idx % CHIBI_OUTFITS.length),
+                            abducted: Boolean(p.abducted),
+                            seed: idx
+                        }));
+                    }
+                    if (Array.isArray(parsed.abductionHistory)) {
+                        abductionHistory = parsed.abductionHistory;
+                    }
+                    if (parsed.settings) {
+                        settings = { ...settings, ...parsed.settings };
+                    }
+                    if (parsed.ufoBoss) {
+                        ufoBoss = {
+                            name: parsed.ufoBoss.name || "Sếp Tổng",
+                            slogan: parsed.ufoBoss.slogan || "Lên đĩa bay nhận việc mới nào các em ơi!",
+                            avatar: (parsed.ufoBoss.avatar && parsed.ufoBoss.avatar.startsWith('data:image/'))
+                                ? parsed.ufoBoss.avatar
+                                : generateCleanChibiHeadDataUrl(99, true),
+                            overrideQuote: null
+                        };
+                    }
+                }
+            } catch (e) {
+                console.warn('Reset state:', e);
+            }
+
+            if (participants.length === 0) {
+                participants = createDemoParticipants();
+                saveState();
+            }
+
+            document.getElementById('input-abduct-count').value = settings.abductCount;
+            document.getElementById('toggle-hide-abducted').checked = settings.hideAbducted;
+            document.getElementById('select-abduct-mode').value = settings.abductMode;
+
+            document.getElementById('input-boss-name').value = ufoBoss.name;
+            document.getElementById('input-boss-slogan').value = ufoBoss.slogan;
+            document.getElementById('preview-boss-img').src = ufoBoss.avatar;
+
+            syncStreetActors();
+            renderRosterUI();
+            renderHistoryUI();
+        }
+
+        /**************************************************************************
+         * 5. CANVAS GEOMETRY, AUTO-WRAPPING RPG DIALOG BOX & BUSTLING AI
+         **************************************************************************/
+        const canvas = document.getElementById('street-canvas');
+        const ctx = canvas.getContext('2d');
+        let viewW = Math.max(360, window.innerWidth || 1280);
+        let viewH = Math.max(480, window.innerHeight || 768);
+        let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        function getMaxCameraX() {
+            return Math.max(0, WORLD_WIDTH - viewW);
+        }
+
+        function clampCamera(val) {
+            return Math.max(0, Math.min(getMaxCameraX(), val));
+        }
+
+        function updatePanSliderUI() {
+            const slider = document.getElementById('slider-camera-pan');
+            const maxCam = getMaxCameraX();
+            if (maxCam > 0) {
+                slider.value = Math.round((cameraX / maxCam) * 100);
+            }
+        }
+
+        function resizeCanvas() {
+            viewW = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
+            viewH = Math.max(320, window.innerHeight || document.documentElement.clientHeight || 768);
+            dpr = Math.min(window.devicePixelRatio || 1, 2);
+            canvas.width = Math.floor(viewW * dpr);
+            canvas.height = Math.floor(viewH * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            cameraX = clampCamera(cameraX);
+            targetCameraX = clampCamera(targetCameraX);
+            updatePanSliderUI();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function drawRoundedRectPath(c, x, y, w, h, r) {
+            if (w < 0) { x += w; w = Math.abs(w); }
+            if (h < 0) { y += h; h = Math.abs(h); }
+            const rad = Math.max(0, Math.min(Number(r) || 0, w / 2, h / 2));
+            c.beginPath();
+            c.moveTo(x + rad, y);
+            c.lineTo(x + w - rad, y);
+            c.quadraticCurveTo(x + w, y, x + w, y + rad);
+            c.lineTo(x + w, y + h - rad);
+            c.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+            c.lineTo(x + rad, y + h);
+            c.quadraticCurveTo(x, y + h, x, y + h - rad);
+            c.lineTo(x, y + rad);
+            c.quadraticCurveTo(x, y, x + rad, y);
+            c.closePath();
+        }
+
+        /**
+         * PERFECT MULTI-LINE WORD WRAPPER & DYNAMIC RPG DIALOG BOX RENDERER
+         * Guarantees Vietnamese text NEVER overflows its speech bubble!
+         */
+        function wrapTextLines(c, text, maxInnerWidth) {
+            const words = String(text || '').trim().split(/\s+/);
+            const lines = [];
+            let currentLine = '';
+
+            for (let i = 0; i < words.length; i++) {
+                const word = words[i];
+                const testLine = currentLine ? (currentLine + ' ' + word) : word;
+                const metrics = c.measureText(testLine);
+                if (metrics.width > maxInnerWidth && currentLine !== '') {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            if (currentLine) {
+                lines.push(currentLine);
+            }
+            return lines.length > 0 ? lines : [''];
+        }
+
+        function drawRPGDialogBox(c, anchorX, bottomY, speakerName, text, theme = 'resident') {
+            if (!text) return;
+            c.save();
+
+            const bodyFont = `700 11.5px ${FONT_STACK}`;
+            const headerFont = `900 10.5px ${FONT_STACK}`;
+            const maxTextWidth = theme === 'boss' ? 240 : 196;
+            const padX = 13;
+            const padY = 9;
+            const lineHeight = 16;
+
+            // 1. Set body font BEFORE measuring & wrapping
+            c.font = bodyFont;
+            const lines = wrapTextLines(c, text, maxTextWidth);
+
+            let maxMeasuredLineW = 0;
+            for (const ln of lines) {
+                const w = c.measureText(ln).width;
+                if (w > maxMeasuredLineW) maxMeasuredLineW = w;
+            }
+
+            // 2. Measure speaker header badge width if present
+            let headerW = 0;
+            if (speakerName) {
+                c.font = headerFont;
+                headerW = c.measureText(speakerName).width + 18;
+            }
+
+            const boxW = Math.max(96, Math.ceil(Math.max(maxMeasuredLineW + padX * 2, headerW + 16)));
+            const boxH = lines.length * lineHeight + padY * 2 + (speakerName ? 4 : 0);
+
+            const boxX = anchorX - boxW / 2;
+            const boxY = bottomY - boxH;
+
+            // Theme palette
+            let bgFill = "rgba(255, 253, 245, 0.97)";
+            let borderStroke = "#1e1b4b";
+            let innerStroke = "#cbd5e1";
+            let textFill = "#0f172a";
+            let badgeBg = "#1e1b4b";
+            let badgeText = "#fde047";
+
+            if (theme === 'panic') {
+                bgFill = "#fef2f2";
+                borderStroke = "#b91c1c";
+                innerStroke = "#fca5a5";
+                textFill = "#991b1b";
+                badgeBg = "#991b1b";
+                badgeText = "#fef08a";
+            } else if (theme === 'keeper') {
+                bgFill = "#fefce8";
+                borderStroke = "#92400e";
+                innerStroke = "#fde047";
+                textFill = "#78350f";
+                badgeBg = "#78350f";
+                badgeText = "#fde047";
+            } else if (theme === 'boss') {
+                bgFill = "#fef08a";
+                borderStroke = "#1e1b4b";
+                innerStroke = "#f59e0b";
+                textFill = "#1e1b4b";
+                badgeBg = "#1e1b4b";
+                badgeText = "#fbbf24";
+            } else if (theme === 'dropped') {
+                bgFill = "#eff6ff";
+                borderStroke = "#1d4ed8";
+                innerStroke = "#93c5fd";
+                textFill = "#1e3a8a";
+                badgeBg = "#1e3a8a";
+                badgeText = "#fde047";
+            }
+
+            // Drop shadow
+            c.fillStyle = "rgba(15, 23, 42, 0.22)";
+            drawRoundedRectPath(c, boxX + 2, boxY + 3, boxW, boxH, 9);
+            c.fill();
+
+            // Outer RPG Frame
+            c.fillStyle = bgFill;
+            c.strokeStyle = borderStroke;
+            c.lineWidth = 2.4;
+            drawRoundedRectPath(c, boxX, boxY, boxW, boxH, 9);
+            c.fill();
+            c.stroke();
+
+            // Inner Subtle Frame
+            c.strokeStyle = innerStroke;
+            c.lineWidth = 1.2;
+            drawRoundedRectPath(ctx, boxX + 2.5, boxY + 2.5, boxW - 5, boxH - 5, 7);
+            c.stroke();
+
+            // Speech Pointer Tail
+            c.fillStyle = bgFill;
+            c.strokeStyle = borderStroke;
+            c.lineWidth = 2.4;
+            c.beginPath();
+            c.moveTo(anchorX - 6, boxY + boxH - 1);
+            c.lineTo(anchorX, boxY + boxH + 7);
+            c.lineTo(anchorX + 6, boxY + boxH - 1);
+            c.closePath();
+            c.fill();
+            c.stroke();
+
+            // Speaker Name Pill Badge on Top-Left Border
+            if (speakerName) {
+                c.font = headerFont;
+                const pillH = 17;
+                const pillX = boxX + 8;
+                const pillY = boxY - pillH / 2 - 1;
+
+                c.fillStyle = badgeBg;
+                c.strokeStyle = borderStroke;
+                c.lineWidth = 1.6;
+                drawRoundedRectPath(c, pillX, pillY, headerW, pillH, 6);
+                c.fill();
+                c.stroke();
+
+                c.fillStyle = badgeText;
+                c.textAlign = "left";
+                c.textBaseline = "middle";
+                c.fillText(speakerName, pillX + 9, pillY + pillH / 2 + 0.5);
+            }
+
+            // Wrapped Text Lines Inside Box
+            c.font = bodyFont;
+            c.fillStyle = textFill;
+            c.textAlign = "center";
+            c.textBaseline = "middle";
+            const startTextY = boxY + padY + (speakerName ? 4 : 0) + lineHeight / 2;
+
+            for (let i = 0; i < lines.length; i++) {
+                c.fillText(lines[i], anchorX, startTextY + i * lineHeight);
+            }
+
+            c.restore();
+        }
+
+        function getSidewalkYBounds() {
+            return {
+                minY: viewH * 0.585,
+                maxY: viewH * 0.855
+            };
+        }
+
+        function assignBustlingShopVisit(act, immediate = false) {
+            const yBounds = getSidewalkYBounds();
+            const shop = TOWN_SHOPS[Math.floor(Math.random() * TOWN_SHOPS.length)];
+            const tx = shop.visitMinX + Math.random() * (shop.visitMaxX - shop.visitMinX);
+            const ty = yBounds.minY + Math.random() * (yBounds.maxY - yBounds.minY);
+
+            act.targetShop = shop;
+            act.targetX = tx;
+            act.targetY = ty;
+
+            if (immediate) {
+                act.x = tx;
+                act.y = ty;
+                act.aiState = 'interacting_shop';
+                act.stateTimer = 2.4 + Math.random() * 2.8;
+            } else {
+                act.aiState = 'walking_to_shop';
+                act.stateTimer = 14.0;
+            }
+        }
+
+        function triggerTwoWayShopInteraction(act, shop) {
+            const keeper = shopkeeperActors.find(k => k.shopId === shop.id);
+            const dlgList = shop.dialogues;
+            const pair = dlgList[Math.floor(Math.random() * dlgList.length)];
+
+            if (keeper) {
+                act.dir = (keeper.wx >= act.x) ? 1 : -1;
+                keeper.dir = (act.x >= keeper.wx) ? 1 : -1;
+                keeper.speechText = pair.keeper;
+                keeper.speechTimer = 3.8;
+            }
+
+            act.speechText = pair.resident;
+            act.speechTimer = 4.0;
+            spawnEmote(act.x, act.y - 95, shop.badgeIcon);
+        }
+
+        function syncStreetActors() {
+            const visibleList = participants.filter(p => !(settings.hideAbducted && p.abducted));
+            const visibleIds = new Set(visibleList.map(p => p.id));
+
+            for (const id of actors.keys()) {
+                if (!visibleIds.has(id)) actors.delete(id);
+            }
+
+            visibleList.forEach((p, idx) => {
+                if (!actors.has(p.id)) {
+                    const startShop = TOWN_SHOPS[idx % TOWN_SHOPS.length];
+                    const yBounds = getSidewalkYBounds();
+                    const act = {
+                        id: p.id,
+                        participant: p,
+                        x: startShop.visitMinX + Math.random() * (startShop.visitMaxX - startShop.visitMinX),
+                        y: yBounds.minY + Math.random() * (yBounds.maxY - yBounds.minY),
+                        targetX: 500,
+                        targetY: viewH * 0.72,
+                        speed: 95 + (idx % 6) * 14,
+                        dir: Math.random() > 0.5 ? 1 : -1,
+                        aiState: 'walking_to_shop',
+                        targetShop: startShop,
+                        stateTimer: 1.5 + Math.random() * 3,
+                        walkPhase: Math.random() * Math.PI * 2,
+                        bobPhase: Math.random() * Math.PI * 2,
+                        panicZigZagTimer: 0.3 + Math.random() * 0.5,
+                        panicVy: 0,
+                        speechText: null,
+                        speechTimer: 0,
+                        // Abduction & Fake-out Drop states
+                        isBeingAbducted: false,
+                        abductProgress: 0,
+                        abductDuration: 2.6,
+                        abductStartX: 0,
+                        abductStartY: 0,
+                        fakeoutState: 'none', // 'none' | 'lifting' | 'falling' | 'sitting_dazed'
+                        liftHeight: 0,
+                        fallVy: 0,
+                        sitTimer: 0
+                    };
+                    assignBustlingShopVisit(act, false);
+                    actors.set(p.id, act);
+                } else {
+                    const existing = actors.get(p.id);
+                    existing.participant = p;
+                    existing.isBeingAbducted = false;
+                    existing.abductProgress = 0;
+                    existing.fakeoutState = 'none';
+                    existing.liftHeight = 0;
+                    existing.fallVy = 0;
+                    existing.sitTimer = 0;
+                }
+            });
+
+            updateHudCounters();
+        }
+
+        function updateHudCounters() {
+            document.getElementById('badge-total-count').textContent = participants.length;
+            document.getElementById('roster-count-label').textContent = participants.length;
+            document.getElementById('badge-history-count').textContent = abductionHistory.length;
+        }
+
+        function spawnEmote(wx, wy, text) {
+            floatingEmotes.push({
+                wx,
+                wy,
+                vx: (Math.random() - 0.5) * 24,
+                vy: -36 - Math.random() * 18,
+                text,
+                life: 0,
+                maxLife: 1.35
+            });
+        }
+
+        /**************************************************************************
+         * 6. CAMERA DRAG, WHEEL & PAN BUTTON CONTROLS
+         **************************************************************************/
+        canvas.addEventListener('pointerdown', (e) => {
+            if (isAbductingSequence) return;
+            isDraggingCamera = true;
+            dragStartX = e.clientX;
+            dragStartCameraX = targetCameraX;
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (!isDraggingCamera || isAbductingSequence) return;
+            const dx = e.clientX - dragStartX;
+            targetCameraX = clampCamera(dragStartCameraX - dx * 1.15);
+        });
+
+        window.addEventListener('pointerup', () => {
+            isDraggingCamera = false;
+        });
+
+        window.addEventListener('wheel', (e) => {
+            if (isAbductingSequence) return;
+            const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+            targetCameraX = clampCamera(targetCameraX + delta * 0.9);
+        }, { passive: true });
+
+        document.getElementById('btn-pan-left').addEventListener('click', () => {
+            targetCameraX = clampCamera(targetCameraX - 420);
+        });
+        document.getElementById('btn-pan-right').addEventListener('click', () => {
+            targetCameraX = clampCamera(targetCameraX + 420);
+        });
+        document.getElementById('slider-camera-pan').addEventListener('input', (e) => {
+            const pct = Number(e.target.value) / 100;
+            targetCameraX = clampCamera(pct * getMaxCameraX());
+        });
+
+        /**************************************************************************
+         * 7. 3400px WIDE VIETNAMESE STREET MARKET RENDERER (9 DETAILED BUILDINGS)
+         **************************************************************************/
+        const clouds = Array.from({ length: 14 }, (_, i) => ({
+            wx: (i * 260) % WORLD_WIDTH,
+            y: 36 + (i % 3) * 26,
+            scale: 0.72 + (i % 3) * 0.16,
+            speed: 12 + (i % 4) * 3
+        }));
+
+        function drawStripedAwning(x, y, w, h, stripes, color1, color2) {
+            const sw = w / stripes;
+            for (let i = 0; i < stripes; i++) {
+                ctx.fillStyle = (i % 2 === 0) ? color1 : color2;
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.moveTo(x + i * sw, y);
+                ctx.lineTo(x + (i + 1) * sw, y);
+                ctx.lineTo(x + (i + 1) * sw - 2, y + h);
+                ctx.quadraticCurveTo(x + (i + 0.5) * sw, y + h + 7, x + i * sw + 2, y + h);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
+        function drawParkedScooter(x, y, bodyColor, scale = 1) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 2.2;
+
+            ctx.fillStyle = "rgba(15, 23, 42, 0.28)";
+            ctx.beginPath();
+            ctx.ellipse(0, 14, 18, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#1e293b";
+            ctx.beginPath();
+            ctx.arc(0, 8, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = bodyColor;
+            drawRoundedRectPath(ctx, -11, -14, 22, 20, 7);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(-14, -18);
+            ctx.lineTo(14, -18);
+            ctx.stroke();
+
+            ctx.fillStyle = "#fef08a";
+            ctx.beginPath();
+            ctx.arc(0, -18, 5.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.strokeStyle = "#475569";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-10, -18); ctx.lineTo(-15, -25);
+            ctx.moveTo(10, -18); ctx.lineTo(15, -25);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawWovenBasketStack(x, y, count) {
+            for (let i = 0; i < count; i++) {
+                const by = y - i * 7;
+                ctx.fillStyle = (i % 2 === 0) ? "#b45309" : "#d97706";
+                ctx.strokeStyle = "#451a03";
+                ctx.lineWidth = 1.8;
+                drawRoundedRectPath(ctx, x - 18, by - 9, 36, 10, 4);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = "#f59e0b";
+                drawRoundedRectPath(ctx, x - 20, by - 11, 40, 4, 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
+        function drawPlasticBasinStack(x, y, colors) {
+            colors.forEach((col, i) => {
+                const by = y - i * 6.5;
+                ctx.fillStyle = col;
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 1.8;
+                drawRoundedRectPath(ctx, x - 16, by - 8, 32, 9, 3);
+                ctx.fill();
+                ctx.stroke();
+            });
+        }
+
+        function drawUtilityPoleWithCameraAndLoudspeakers(poleX, buildingWallBot) {
+            ctx.fillStyle = "#cbd5e1";
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 3;
+            ctx.fillRect(poleX - 7, 18, 14, buildingWallBot + 30);
+            ctx.strokeRect(poleX - 7, 18, 14, buildingWallBot + 30);
+
+            ctx.save();
+            ctx.translate(poleX, 168);
+            ctx.fillStyle = "#e2e8f0";
+            ctx.beginPath();
+            ctx.moveTo(-6, 0); ctx.lineTo(-28, -14); ctx.lineTo(-28, 14); ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#94a3b8";
+            ctx.beginPath();
+            ctx.ellipse(-28, 0, 5, 14, 0, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            ctx.fillStyle = "#e2e8f0";
+            ctx.beginPath();
+            ctx.moveTo(6, 0); ctx.lineTo(28, -14); ctx.lineTo(28, 14); ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#94a3b8";
+            ctx.beginPath();
+            ctx.ellipse(28, 0, 5, 14, 0, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            ctx.translate(0, -46);
+            ctx.fillStyle = "#f8fafc";
+            drawRoundedRectPath(ctx, -28, -12, 26, 14, 4);
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.arc(-22, -5, 2.8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function renderPanoramicTownWorld(nowSec) {
+            const buildingWallBot = viewH * 0.54;
+            const curbY = viewH * 0.875;
+
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, buildingWallBot);
+            skyGrad.addColorStop(0, currentSkyTheme.topSky);
+            skyGrad.addColorStop(0.65, currentSkyTheme.midSky);
+            skyGrad.addColorStop(1, currentSkyTheme.botSky);
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, viewW, buildingWallBot);
+
+            ctx.save();
+            ctx.translate(-cameraX, 0);
+
+            clouds.forEach(c => {
+                if (c.wx + 120 < cameraX || c.wx - 120 > cameraX + viewW) return;
+                ctx.save();
+                ctx.translate(c.wx, c.y);
+                ctx.scale(c.scale, c.scale);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.86)";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(0, 0, 18, Math.PI * 0.5, Math.PI * 1.5);
+                ctx.arc(20, -10, 21, Math.PI * 1.05, Math.PI * 1.92);
+                ctx.arc(44, -5, 17, Math.PI * 1.15, Math.PI * 1.95);
+                ctx.arc(58, 4, 14, Math.PI * 1.5, Math.PI * 0.5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            });
+
+            [380, 990, 1750, 2510, 3150].forEach(treeX => {
+                const treeY = buildingWallBot - 210;
+                ctx.strokeStyle = "#451a03";
+                ctx.lineWidth = 12;
+                ctx.beginPath();
+                ctx.moveTo(treeX, treeY + 65); ctx.lineTo(treeX - 20, treeY);
+                ctx.moveTo(treeX, treeY + 55); ctx.lineTo(treeX + 25, treeY - 8);
+                ctx.stroke();
+
+                [[-48, 6, 38], [0, -18, 46], [48, 2, 40], [-20, -10, 35], [24, -12, 35]].forEach(([dx, dy, rad]) => {
+                    ctx.fillStyle = "#15803d";
+                    ctx.strokeStyle = "#1e1b4b";
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.arc(treeX + dx, treeY + dy, rad, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.fillStyle = "#22c55e";
+                    ctx.beginPath();
+                    ctx.arc(treeX + dx - 6, treeY + dy - 6, rad * 0.72, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            });
+
+            [
+                { x: 1090, t1: "ĐOÀN KẾT - VĂN MINH - MỸ QUAN ĐÔ THỊ", t2: "KHU PHỐ CHỢ ĐẦU MỐI QUYẾT TÂM THI ĐUA" },
+                { x: 2200, t1: "AN TOÀN GIAO THÔNG - TRẬT TỰ VỈA HÈ", t2: "CẢNH GIÁC ĐĨA BAY UFO BẮT CÓC NHÂN VIÊN" }
+            ].forEach(b => {
+                const by = buildingWallBot - 218;
+                ctx.strokeStyle = "#334155";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(b.x + 20, by + 36); ctx.lineTo(b.x + 20, by + 76);
+                ctx.moveTo(b.x + 290, by + 36); ctx.lineTo(b.x + 290, by + 76);
+                ctx.stroke();
+
+                ctx.fillStyle = "#dc2626";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 2.5;
+                drawRoundedRectPath(ctx, b.x, by, 310, 40, 5);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#fde047";
+                ctx.font = `900 11px ${FONT_STACK}`;
+                ctx.textAlign = "center";
+                ctx.fillText(b.t1, b.x + 155, by + 16);
+                ctx.fillStyle = "#ffffff";
+                ctx.font = `700 9.5px ${FONT_STACK}`;
+                ctx.fillText(b.t2, b.x + 155, by + 31);
+            });
+
+            ctx.fillStyle = "#e7dec8";
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 3.5;
+            ctx.fillRect(0, buildingWallBot - 165, WORLD_WIDTH, 165);
+            ctx.beginPath();
+            ctx.moveTo(0, buildingWallBot - 165);
+            ctx.lineTo(WORLD_WIDTH, buildingWallBot - 165);
+            ctx.stroke();
+
+            for (let gx = 30; gx < WORLD_WIDTH - 60; gx += 120) {
+                ctx.fillStyle = "#475569";
+                drawRoundedRectPath(ctx, gx, buildingWallBot - 154, 64, 16, 3);
+                ctx.fill();
+                ctx.stroke();
+                for (let b = 0; b < 4; b++) {
+                    ctx.fillStyle = "#bae6fd";
+                    ctx.fillRect(gx + 5 + b * 14, buildingWallBot - 151, 11, 10);
+                }
+            }
+
+            // BUILDING 1: MÔI GIỚI VIỆC LÀM
+            {
+                const bX = 80, bW = 310, bTop = buildingWallBot - 135;
+                ctx.fillStyle = "#64748b";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 3;
+                ctx.fillRect(bX + 10, bTop + 36, bW - 20, 99);
+                ctx.strokeRect(bX + 10, bTop + 36, bW - 20, 99);
+
+                ctx.fillStyle = "#f8fafc";
+                drawRoundedRectPath(ctx, bX + 160, bTop + 46, 130, 62, 4);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#dc2626";
+                ctx.font = `900 10px ${FONT_STACK}`;
+                ctx.textAlign = "center";
+                ctx.fillText("BẢNG TUYỂN DỤNG", bX + 225, bTop + 60);
+                ctx.fillStyle = "#1e293b";
+                ctx.font = `700 9px ${FONT_STACK}`;
+                ctx.fillText("• Phụ bán Chợ Đầu Mối", bX + 225, bTop + 75);
+                ctx.fillText("• Trông xe Hôn-đa Tí Sún", bX + 225, bTop + 88);
+                ctx.fillText("• Bưng bê Bún Bò Tư Heo", bX + 225, bTop + 101);
+
+                ctx.fillStyle = "#b45309";
+                drawRoundedRectPath(ctx, bX + 24, buildingWallBot - 40, 110, 38, 4);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(bX + 36, buildingWallBot - 30, 38, 16);
+                ctx.strokeRect(bX + 36, buildingWallBot - 30, 38, 16);
+                ctx.fillStyle = "#0f172a";
+                ctx.font = `900 10px ${FONT_STACK}`;
+                ctx.fillText("H · S", bX + 55, buildingWallBot - 18);
+
+                drawStripedAwning(bX + 4, bTop + 28, bW - 8, 26, 8, "#f472b6", "#fce7f3");
+                ctx.fillStyle = "#fb923c";
+                drawRoundedRectPath(ctx, bX, bTop, bW, 30, 5);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#ffffff";
+                ctx.font = `900 13px ${FONT_STACK}`;
+                ctx.fillText("MÔI GIỚI VIỆC LÀM", bX + bW / 2, bTop + 20);
+
+                const signX = bX + bW + 24;
+                const signY = buildingWallBot - 10;
+                ctx.fillStyle = "#78350f";
+                ctx.fillRect(signX - 4, signY - 46, 8, 46);
+                ctx.strokeRect(signX - 4, signY - 46, 8, 46);
+                ctx.fillStyle = "#b45309";
+                ctx.beginPath();
+                ctx.moveTo(signX - 34, signY - 44);
+                ctx.lineTo(signX + 20, signY - 44);
+                ctx.lineTo(signX + 36, signY - 30);
+                ctx.lineTo(signX + 20, signY - 16);
+                ctx.lineTo(signX - 34, signY - 16);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#fef3c7";
+                ctx.font = `900 11px ${FONT_STACK}`;
+                ctx.fillText("Vào chợ", signX - 4, signY - 26);
+            }
+
+            // BUILDING 2: CHỢ ĐẦU MỐI
+            {
+                const mX = 450, mW = 520, mBaseY = buildingWallBot, mWallH = 145;
+                ctx.fillStyle = "#1e293b";
+                ctx.strokeStyle = "#0f172a";
+                ctx.lineWidth = 3.5;
+                ctx.fillRect(mX + 16, mBaseY - mWallH, mW - 32, mWallH);
+                ctx.strokeRect(mX + 16, mBaseY - mWallH, mW - 32, mWallH);
+
+                ctx.fillStyle = "#0284c7";
+                ctx.beginPath();
+                ctx.moveTo(mX + 20, mBaseY - mWallH + 6);
+                ctx.lineTo(mX + mW * 0.48, mBaseY - mWallH + 6);
+                ctx.lineTo(mX + mW * 0.44, mBaseY - mWallH + 38);
+                ctx.lineTo(mX + 28, mBaseY - mWallH + 32);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = "#ea580c";
+                ctx.beginPath();
+                ctx.moveTo(mX + mW * 0.48, mBaseY - mWallH + 6);
+                ctx.lineTo(mX + mW - 20, mBaseY - mWallH + 6);
+                ctx.lineTo(mX + mW - 28, mBaseY - mWallH + 36);
+                ctx.lineTo(mX + mW * 0.52, mBaseY - mWallH + 30);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+
+                drawPlasticBasinStack(mX + 95, mBaseY - 8, ["#22c55e", "#3b82f6", "#ef4444", "#eab308", "#a855f7", "#ec4899"]);
+                drawPlasticBasinStack(mX + 150, mBaseY - 8, ["#3b82f6", "#f97316", "#10b981", "#eab308", "#ef4444"]);
+                drawPlasticBasinStack(mX + 205, mBaseY - 8, ["#ec4899", "#22c55e", "#3b82f6", "#f59e0b"]);
+                drawWovenBasketStack(mX + 340, mBaseY - 4, 7);
+                drawWovenBasketStack(mX + 395, mBaseY - 4, 9);
+                drawWovenBasketStack(mX + 450, mBaseY - 4, 6);
+
+                ctx.fillStyle = "#fde047";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(mX + 180, mBaseY - 102);
+                ctx.lineTo(mX + 475, mBaseY - 102);
+                ctx.lineTo(mX + 495, mBaseY - 72);
+                ctx.lineTo(mX + 160, mBaseY - 72);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = "#d6cbb5";
+                ctx.fillRect(mX, mBaseY - mWallH, 20, mWallH);
+                ctx.strokeRect(mX, mBaseY - mWallH, 20, mWallH);
+                ctx.fillRect(mX + mW - 20, mBaseY - mWallH, 20, mWallH);
+                ctx.strokeRect(mX + mW - 20, mBaseY - mWallH, 20, mWallH);
+
+                ctx.fillStyle = "#efe6d5";
+                ctx.strokeStyle = "#451a03";
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(mX - 22, mBaseY - mWallH + 6);
+                ctx.lineTo(mX + mW / 2, mBaseY - mWallH - 88);
+                ctx.lineTo(mX + mW + 22, mBaseY - mWallH + 6);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = "#dfd3bc";
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(mX + 14, mBaseY - mWallH - 2);
+                ctx.lineTo(mX + mW / 2, mBaseY - mWallH - 72);
+                ctx.lineTo(mX + mW - 14, mBaseY - mWallH - 2);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+
+                ctx.textAlign = "center";
+                ctx.font = `900 24px ${FONT_STACK}`;
+                ctx.fillStyle = "#451a03";
+                ctx.fillText("CHỢ", mX + mW / 2 + 2, mBaseY - mWallH - 40);
+                ctx.fillText("ĐẦU MỐI", mX + mW / 2 + 2, mBaseY - mWallH - 12);
+
+                ctx.fillStyle = "#fef3c7";
+                ctx.strokeStyle = "#78350f";
+                ctx.lineWidth = 1.8;
+                ctx.fillText("CHỢ", mX + mW / 2, mBaseY - mWallH - 42);
+                ctx.strokeText("CHỢ", mX + mW / 2, mBaseY - mWallH - 42);
+                ctx.fillText("ĐẦU MỐI", mX + mW / 2, mBaseY - mWallH - 14);
+                ctx.strokeText("ĐẦU MỐI", mX + mW / 2, mBaseY - mWallH - 14);
+            }
+
+            // BUILDING 3: HÔN-ĐA TÍ SÚN
+            {
+                const hX = 1030, hW = 390, hTop = buildingWallBot - 135;
+                ctx.fillStyle = "#1e293b";
+                ctx.strokeStyle = "#0f172a";
+                ctx.lineWidth = 3;
+                ctx.fillRect(hX + 10, hTop + 36, hW - 20, 99);
+                ctx.strokeRect(hX + 10, hTop + 36, hW - 20, 99);
+
+                const cols = ["#38bdf8", "#60a5fa", "#f43f5e", "#a855f7", "#22c55e"];
+                for (let s = 0; s < 5; s++) {
+                    drawParkedScooter(hX + 55 + s * 68, buildingWallBot - 16, cols[s], 0.95);
+                }
+
+                drawStripedAwning(hX + 4, hTop + 28, hW - 8, 26, 9, "#ef4444", "#fee2e2");
+
+                ctx.fillStyle = "#2563eb";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 3;
+                drawRoundedRectPath(ctx, hX, hTop, hW, 32, 5);
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = "#fde047";
+                ctx.font = `900 15px ${FONT_STACK}`;
+                ctx.textAlign = "center";
+                ctx.fillText("HÔN-ĐA TÍ SÚN", hX + hW / 2, hTop + 15);
+                ctx.fillStyle = "#e0f2fe";
+                ctx.font = `700 10px ${FONT_STACK}`;
+                ctx.fillText("114 Trường Chinh - ĐT: 0909.885.893", hX + hW / 2, hTop + 27);
+            }
+
+            // BUILDING 4: BÚN BÒ TƯ HEO
+            {
+                const stallX = 1610, stallY = buildingWallBot + 36;
+                drawStripedAwning(1470, buildingWallBot - 115, 270, 26, 7, "#fb923c", "#fef3c7");
+                ctx.fillStyle = "#dc2626";
+                drawRoundedRectPath(ctx, 1470, buildingWallBot - 142, 270, 28, 5);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#fde047";
+                ctx.font = `900 14px ${FONT_STACK}`;
+                ctx.textAlign = "center";
+                ctx.fillText("QUÁN BÚN BÒ TƯ HEO", 1605, buildingWallBot - 123);
+
+                ctx.save();
+                ctx.translate(stallX, stallY);
+                ctx.fillStyle = "#e2e8f0";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 2.6;
+                drawRoundedRectPath(ctx, -38, -50, 76, 48, 5);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "rgba(186, 230, 253, 0.6)";
+                drawRoundedRectPath(ctx, -35, -86, 70, 36, 4);
+                ctx.fill(); ctx.stroke();
+
+                for (let s = 0; s < 3; s++) {
+                    const p = (nowSec * 0.9 + s * 0.33) % 1;
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.65)";
+                    ctx.beginPath();
+                    ctx.arc(-12 + s * 12, -90 - p * 26, 5 + p * 6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.fillStyle = "#1e293b";
+                ctx.beginPath();
+                ctx.arc(-20, 2, 9, 0, Math.PI * 2);
+                ctx.arc(20, 2, 9, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = "#ef4444";
+                drawRoundedRectPath(ctx, -115, -8, 56, 24, 4);
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = "#3b82f6";
+                drawRoundedRectPath(ctx, -75, 20, 58, 24, 4);
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = "#dc2626";
+                ctx.fillRect(-95, -16, 6, 10);
+                ctx.fillStyle = "#facc15";
+                ctx.fillRect(-86, -15, 6, 9);
+                ctx.fillStyle = "#dc2626";
+                ctx.fillRect(-52, 12, 6, 10);
+
+                ctx.translate(78, 38);
+                ctx.fillStyle = "#ea580c";
+                drawRoundedRectPath(ctx, -22, 14, 44, 11, 2);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#ffffff";
+                drawRoundedRectPath(ctx, -18, -42, 36, 58, 4);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#2563eb";
+                ctx.font = `900 9px ${FONT_STACK}`;
+                ctx.textAlign = "center";
+                ctx.fillText("Bún bò", 0, -26);
+                ctx.fillStyle = "#dc2626";
+                ctx.font = `900 10px ${FONT_STACK}`;
+                ctx.fillText("TƯ HEO", 0, -12);
+                ctx.fillStyle = "#15803d";
+                ctx.font = `800 8.5px ${FONT_STACK}`;
+                ctx.fillText("kính mời", 0, 2);
+                ctx.restore();
+            }
+
+            // BUILDING 5: TIỆM VÀNG KIM PHÁT
+            {
+                const gX = 1800, gW = 320, gTop = buildingWallBot - 135;
+                ctx.fillStyle = "#fef08a";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 3;
+                ctx.fillRect(gX, gTop + 32, gW, 103);
+                ctx.strokeRect(gX, gTop + 32, gW, 103);
+
+                ctx.fillStyle = "#bae6fd";
+                drawRoundedRectPath(ctx, gX + 24, buildingWallBot - 56, gW - 48, 46, 5);
+                ctx.fill(); ctx.stroke();
+                for (let n = 0; n < 5; n++) {
+                    ctx.strokeStyle = "#eab308";
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(gX + 58 + n * 50, buildingWallBot - 42, 9, 0, Math.PI);
+                    ctx.stroke();
+                }
+                ctx.fillStyle = "#b91c1c";
+                ctx.fillRect(gX + 24, buildingWallBot - 28, gW - 48, 18);
+                ctx.strokeRect(gX + 24, buildingWallBot - 28, gW - 48, 18);
+
+                ctx.fillStyle = "#991b1b";
+                drawRoundedRectPath(ctx, gX - 4, gTop, gW + 8, 34, 6);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#fde047";
+                ctx.font = `900 15px ${FONT_STACK}`;
+                ctx.textAlign = "center";
+                ctx.fillText("TIỆM VÀNG KIM PHÁT - 9999", gX + gW / 2, gTop + 22);
+            }
+
+            // BUILDING 6: TRÀ SỮA & NET CỎ
+            {
+                const nX = 2170, nW = 330, nTop = buildingWallBot - 135;
+                ctx.fillStyle = "#312e81";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 3;
+                ctx.fillRect(nX, nTop + 32, nW, 103);
+                ctx.strokeRect(nX, nTop + 32, nW, 103);
+
+                ctx.fillStyle = "#06b6d4";
+                drawRoundedRectPath(ctx, nX + 22, buildingWallBot - 44, 120, 36, 5);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#ffffff";
+                ctx.font = `900 10px ${FONT_STACK}`;
+                ctx.textAlign = "center";
+                ctx.fillText("QUẦY TRÀ SỮA", nX + 82, buildingWallBot - 22);
+
+                for (let pc = 0; pc < 3; pc++) {
+                    ctx.fillStyle = "#22d3ee";
+                    drawRoundedRectPath(ctx, nX + 165 + pc * 48, buildingWallBot - 68, 36, 26, 3);
+                    ctx.fill(); ctx.stroke();
+                }
+
+                drawStripedAwning(nX + 4, nTop + 28, nW - 8, 24, 7, "#10b981", "#d1fae5");
+
+                ctx.fillStyle = "#0f172a";
+                drawRoundedRectPath(ctx, nX - 4, nTop, nW + 8, 32, 6);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#22d3ee";
+                ctx.font = `900 14px ${FONT_STACK}`;
+                ctx.fillText("TRÀ SỮA & NET CỎ 24/7", nX + nW / 2, nTop + 21);
+            }
+
+            // BUILDING 7: ĐẠI LÝ VÉ SỐ
+            {
+                const vX = 2550, vW = 270, vTop = buildingWallBot - 135;
+                ctx.fillStyle = "#fffbeb";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 3;
+                ctx.fillRect(vX, vTop + 32, vW, 103);
+                ctx.strokeRect(vX, vTop + 32, vW, 103);
+
+                ctx.fillStyle = "#fef08a";
+                drawRoundedRectPath(ctx, vX + 20, vTop + 44, 115, 68, 4);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#dc2626";
+                ctx.font = `900 10px ${FONT_STACK}`;
+                ctx.textAlign = "center";
+                ctx.fillText("XỔ SỐ ĐỘC ĐẮC", vX + 77, vTop + 59);
+                ctx.font = `900 15px ${FONT_STACK}`;
+                ctx.fillText("68 - 79 - 88", vX + 77, vTop + 80);
+                ctx.fillStyle = "#1e293b";
+                ctx.font = `700 9px ${FONT_STACK}`;
+                ctx.fillText("Giải Đặc Biệt: 2 TỶ", vX + 77, vTop + 98);
+
+                ctx.fillStyle = "#ef4444";
+                drawRoundedRectPath(ctx, vX + 155, buildingWallBot - 52, 90, 44, 4);
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = "#ea580c";
+                drawRoundedRectPath(ctx, vX - 4, vTop, vW + 8, 32, 5);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#fde047";
+                ctx.font = `900 13px ${FONT_STACK}`;
+                ctx.fillText("ĐẠI LÝ VÉ SỐ ĐẠI PHÁT", vX + vW / 2, vTop + 21);
+            }
+
+            // BUILDING 8: HỚT TÓC THANH NIÊN
+            {
+                const bX = 2870, bW = 260, bTop = buildingWallBot - 135;
+                ctx.fillStyle = "#e0f2fe";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 3;
+                ctx.fillRect(bX, bTop + 32, bW, 103);
+                ctx.strokeRect(bX, bTop + 32, bW, 103);
+
+                ctx.fillStyle = "#bae6fd";
+                drawRoundedRectPath(ctx, bX + 45, bTop + 46, 75, 58, 8);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#ef4444";
+                drawRoundedRectPath(ctx, bX + 145, bTop + 46, 75, 58, 8);
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = "#ffffff";
+                drawRoundedRectPath(ctx, bX + 12, bTop + 48, 16, 56, 6);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#ef4444";
+                ctx.fillRect(bX + 14, bTop + 56, 12, 10);
+                ctx.fillStyle = "#2563eb";
+                ctx.fillRect(bX + 14, bTop + 76, 12, 10);
+
+                ctx.fillStyle = "#0284c7";
+                drawRoundedRectPath(ctx, bX - 4, bTop, bW + 8, 32, 5);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#ffffff";
+                ctx.font = `900 13px ${FONT_STACK}`;
+                ctx.textAlign = "center";
+                ctx.fillText("HỚT TÓC - RÁY TAI ÊM ÁI", bX + bW / 2, bTop + 21);
+            }
+
+            // BUILDING 9: TRẠM GÁC DÂN PHỐ
+            {
+                const tX = 3170, tW = 190, tTop = buildingWallBot - 125;
+                ctx.fillStyle = "#ccfbf1";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 3;
+                ctx.fillRect(tX, tTop + 30, tW, 95);
+                ctx.strokeRect(tX, tTop + 30, tW, 95);
+
+                ctx.fillStyle = "#0f766e";
+                drawRoundedRectPath(ctx, tX - 4, tTop, tW + 8, 30, 5);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#fde047";
+                ctx.font = `900 12px ${FONT_STACK}`;
+                ctx.textAlign = "center";
+                ctx.fillText("TRẠM GÁC DÂN PHỐ", tX + tW / 2, tTop + 20);
+            }
+
+            // WIDE STONE-PAVED SIDEWALK & CURB ACROSS ALL 3400px
+            const sidewalkGrad = ctx.createLinearGradient(0, buildingWallBot, 0, curbY);
+            sidewalkGrad.addColorStop(0, "#9ca3af");
+            sidewalkGrad.addColorStop(0.5, "#cbd5e1");
+            sidewalkGrad.addColorStop(1, "#94a3b8");
+            ctx.fillStyle = sidewalkGrad;
+            ctx.fillRect(0, buildingWallBot, WORLD_WIDTH, curbY - buildingWallBot);
+
+            ctx.strokeStyle = "rgba(51, 65, 85, 0.2)";
+            ctx.lineWidth = 1.5;
+            const rows = 5;
+            for (let r = 1; r < rows; r++) {
+                const ry = buildingWallBot + ((curbY - buildingWallBot) / rows) * r;
+                ctx.beginPath();
+                ctx.moveTo(0, ry);
+                ctx.lineTo(WORLD_WIDTH, ry);
+                ctx.stroke();
+            }
+            for (let cx = 50; cx < WORLD_WIDTH; cx += 95) {
+                ctx.beginPath();
+                ctx.moveTo(cx, buildingWallBot);
+                ctx.lineTo(cx - 28, curbY);
+                ctx.stroke();
+            }
+
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.moveTo(0, buildingWallBot);
+            ctx.lineTo(WORLD_WIDTH, buildingWallBot);
+            ctx.stroke();
+
+            const polePositions = [425, 1445, 2525, 3365];
+            ctx.strokeStyle = "#0f172a";
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            for (let i = 0; i < polePositions.length; i++) {
+                const px = polePositions[i];
+                const prevX = i === 0 ? 0 : polePositions[i - 1];
+                ctx.moveTo(prevX, 122);
+                ctx.quadraticCurveTo((prevX + px) / 2, 148, px, 122);
+            }
+            ctx.stroke();
+            polePositions.forEach(px => drawUtilityPoleWithCameraAndLoudspeakers(px, buildingWallBot));
+
+            ctx.fillStyle = "#d6d3d1";
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 3;
+            ctx.fillRect(0, curbY, WORLD_WIDTH, 18);
+            ctx.strokeRect(0, curbY, WORLD_WIDTH, 18);
+
+            for (let kx = 80; kx < WORLD_WIDTH; kx += 110) {
+                ctx.beginPath();
+                ctx.moveTo(kx, curbY);
+                ctx.lineTo(kx, curbY + 18);
+                ctx.stroke();
+            }
+
+            [880, 1720, 2750].forEach(drainX => {
+                ctx.fillStyle = "#1e293b";
+                drawRoundedRectPath(ctx, drainX, curbY + 3, 78, 12, 3);
+                ctx.fill(); ctx.stroke();
+            });
+
+            ctx.fillStyle = "#475569";
+            ctx.fillRect(0, curbY + 18, WORLD_WIDTH, viewH - (curbY + 18));
+
+            ctx.fillStyle = "#f59e0b";
+            const laneY = curbY + 34;
+            for (let lx = 25; lx < WORLD_WIDTH; lx += 135) {
+                drawRoundedRectPath(ctx, lx, laneY, 74, 7, 3);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        /**************************************************************************
+         * 8. SHOPKEEPER NPCs & CHIBI RESIDENTS (WITH SITTING DAZED & PANIC FLAIL!)
+         **************************************************************************/
+        function drawShopkeeperNpc(keeper, nowSec) {
+            const wy = viewH * 0.54 + 28 + keeper.wyOffset;
+            if (keeper.wx + 220 < cameraX || keeper.wx - 220 > cameraX + viewW) return;
+
+            ctx.save();
+            ctx.translate(keeper.wx, wy);
+
+            ctx.fillStyle = "rgba(15, 23, 42, 0.3)";
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 16, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const bounce = Math.sin(nowSec * (isAbductingSequence ? 12 : 3.5) + keeper.bobPhase) * (isAbductingSequence ? 3.5 : 1.5);
+            ctx.translate(0, -bounce);
+            ctx.scale(CHIBI_BASE_SCALE, CHIBI_BASE_SCALE);
+
+            ctx.save();
+            ctx.scale(keeper.dir, 1);
+
+            ctx.fillStyle = "#1e293b";
+            ctx.strokeStyle = "#0f172a";
+            ctx.lineWidth = 2.4;
+            drawRoundedRectPath(ctx, -12, -24, 10, 22, 4);
+            ctx.fill(); ctx.stroke();
+            drawRoundedRectPath(ctx, 2, -24, 10, 22, 4);
+            ctx.fill(); ctx.stroke();
+
+            ctx.fillStyle = keeper.outfitColor;
+            drawRoundedRectPath(ctx, -18, -68, 36, 46, 8);
+            ctx.fill(); ctx.stroke();
+
+            ctx.fillStyle = "rgba(255,255,255,0.85)";
+            drawRoundedRectPath(ctx, -11, -56, 22, 30, 4);
+            ctx.fill(); ctx.stroke();
+
+            // Waving Arm (flails higher during UFO panic!)
+            ctx.save();
+            ctx.translate(16, -60);
+            const waveRot = isAbductingSequence
+                ? (-2.2 + Math.sin(nowSec * 18 + keeper.bobPhase) * 0.55)
+                : (-0.4 + Math.sin(nowSec * 5 + keeper.bobPhase) * 0.2);
+            ctx.rotate(waveRot);
+            ctx.fillStyle = keeper.outfitColor;
+            drawRoundedRectPath(ctx, -5, 0, 10, 20, 5);
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#fed7aa";
+            ctx.beginPath();
+            ctx.arc(0, 21, 5, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+            ctx.restore();
+
+            const headRadius = 35;
+            ctx.save();
+            ctx.translate(0, -104);
+            ctx.beginPath();
+            ctx.arc(0, 0, headRadius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+            const img = getAvatarImageElement(keeper.avatar, keeper.seed, false);
+            if (img && img.complete) {
+                ctx.drawImage(img, -headRadius, -headRadius, headRadius * 2, headRadius * 2);
+            }
+            ctx.restore();
+
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 3.2;
+            ctx.beginPath();
+            ctx.arc(0, -104, headRadius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            if (keeper.hatType === 'non_la') {
+                ctx.fillStyle = "#fde68a";
+                ctx.strokeStyle = "#78350f";
+                ctx.lineWidth = 2.6;
+                ctx.beginPath();
+                ctx.moveTo(-46, -124);
+                ctx.lineTo(0, -158);
+                ctx.lineTo(46, -124);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            } else if (keeper.hatType === 'pith_helmet') {
+                ctx.fillStyle = "#15803d";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(0, -128, 32, Math.PI, 0);
+                ctx.fill(); ctx.stroke();
+                drawRoundedRectPath(ctx, -40, -130, 80, 7, 3);
+                ctx.fill(); ctx.stroke();
+            }
+
+            ctx.restore(); // End flip
+
+            // Shopkeeper Golden Role Tag & Auto-Wrapped Speech Box
+            ctx.save();
+            ctx.scale(1 / CHIBI_BASE_SCALE, 1 / CHIBI_BASE_SCALE);
+            ctx.font = `900 10px ${FONT_STACK}`;
+            const label = `🏪 ${keeper.name}`;
+            const tw = ctx.measureText(label).width + 14;
+            ctx.fillStyle = "#78350f";
+            ctx.strokeStyle = "#fde047";
+            ctx.lineWidth = 1.6;
+            drawRoundedRectPath(ctx, -tw / 2, 5, tw, 18, 8);
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#fef08a";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(label, 0, 14);
+
+            if (keeper.speechText && keeper.speechTimer > 0) {
+                drawRPGDialogBox(
+                    ctx,
+                    0,
+                    -108,
+                    keeper.name,
+                    keeper.speechText,
+                    isAbductingSequence ? 'panic' : 'keeper'
+                );
+            }
+            ctx.restore();
+
+            ctx.restore();
+        }
+
+        function drawNpcPropInHand(propType, nowSec) {
+            ctx.save();
+            if (propType === 'basket') {
+                ctx.fillStyle = "#d97706";
+                ctx.strokeStyle = "#451a03";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 4, 9, Math.PI, 0);
+                ctx.stroke();
+                drawRoundedRectPath(ctx, -11, 4, 22, 16, 4);
+                ctx.fill(); ctx.stroke();
+                ctx.fillStyle = "#22c55e";
+                ctx.beginPath();
+                ctx.arc(-4, 4, 4, 0, Math.PI * 2);
+                ctx.arc(3, 3, 4.5, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (propType === 'noodle_bowl') {
+                ctx.fillStyle = "#ef4444";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 2, 11, 0, Math.PI);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+                ctx.strokeStyle = "#fde047";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-4, -2); ctx.lineTo(10, -10);
+                ctx.moveTo(-2, 0); ctx.lineTo(12, -6);
+                ctx.stroke();
+            } else if (propType === 'broom') {
+                ctx.rotate(Math.sin(nowSec * 8) * 0.28);
+                ctx.strokeStyle = "#78350f";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(0, -14); ctx.lineTo(4, 16);
+                ctx.stroke();
+                ctx.fillStyle = "#eab308";
+                ctx.strokeStyle = "#451a03";
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                ctx.moveTo(0, 14); ctx.lineTo(12, 26); ctx.lineTo(-6, 28);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+            } else if (propType === 'boba') {
+                ctx.strokeStyle = "#ec4899";
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(0, -10); ctx.lineTo(4, 2);
+                ctx.stroke();
+                ctx.fillStyle = "#fed7aa";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 1.8;
+                drawRoundedRectPath(ctx, -6, -3, 12, 15, 3);
+                ctx.fill(); ctx.stroke();
+            } else if (propType === 'lottery') {
+                ctx.fillStyle = "#fef08a";
+                ctx.strokeStyle = "#dc2626";
+                ctx.lineWidth = 1.8;
+                drawRoundedRectPath(ctx, -8, -4, 16, 11, 2);
+                ctx.fill(); ctx.stroke();
+            } else if (propType === 'clipboard') {
+                ctx.fillStyle = "#f8fafc";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 1.8;
+                drawRoundedRectPath(ctx, -7, -6, 14, 17, 2);
+                ctx.fill(); ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawChibiActor(act, nowSec) {
+            if (!act.isBeingAbducted && act.fakeoutState === 'none' && (act.x + 220 < cameraX || act.x - 220 > cameraX + viewW)) return;
+
+            const p = act.participant;
+            const style = CHIBI_OUTFITS[p.outfitIndex % CHIBI_OUTFITS.length];
+
+            let drawX = act.x;
+            let drawY = act.y - (act.liftHeight || 0);
+            const depthRatio = (act.y - viewH * 0.56) / (viewH * 0.32);
+            let scale = CHIBI_BASE_SCALE * (0.90 + depthRatio * 0.20);
+            let rot = 0;
+
+            if (act.isBeingAbducted) {
+                const t = act.abductProgress;
+                const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                drawX = act.abductStartX + (ufoState.wx - act.abductStartX) * ease + Math.sin(t * 24) * 14 * (1 - t);
+                drawY = act.abductStartY + ((ufoState.y + 22) - act.abductStartY) * ease;
+                scale = Math.max(0.06, scale * (1 - ease * 0.9));
+                rot = ease * Math.PI * 5.5;
+            } else if (act.fakeoutState === 'lifting') {
+                drawX = act.x + Math.sin(nowSec * 22) * 5;
+                rot = Math.sin(nowSec * 14) * 0.22;
+            } else if (act.fakeoutState === 'falling') {
+                rot = Math.sin(nowSec * 25) * 0.32;
+            }
+
+            // Ground Shadow stays on sidewalk (shrinks when lifted high)
+            const heightFactor = Math.max(0.25, 1 - (act.liftHeight || 0) / 260);
+            const shadowScale = act.isBeingAbducted ? Math.max(0.1, 1 - act.abductProgress) : scale * heightFactor;
+            ctx.save();
+            ctx.fillStyle = "rgba(15, 23, 42, 0.32)";
+            ctx.beginPath();
+            ctx.ellipse(act.x, act.y, 24 * shadowScale, 7 * shadowScale, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(drawX, drawY);
+            ctx.rotate(rot);
+            ctx.scale(scale, scale);
+
+            const isSittingDazed = (act.fakeoutState === 'sitting_dazed');
+            const isPanicking = (isAbductingSequence || act.fakeoutState === 'lifting') && !isSittingDazed;
+            const isWalking = (act.aiState === 'walking_to_shop' || isAbductingSequence) && !act.isBeingAbducted && act.fakeoutState === 'none';
+            const walkCycle = isWalking ? Math.sin(act.walkPhase) : 0;
+            const bodyBounce = isSittingDazed ? 0 : (isWalking ? Math.abs(Math.cos(act.walkPhase)) * 4.5 : Math.sin(act.bobPhase) * 1.6);
+
+            // Drop character lower to the pavement when sitting flat on their bum!
+            ctx.translate(0, isSittingDazed ? 14 : -bodyBounce);
+
+            ctx.save();
+            ctx.scale(act.dir, 1);
+
+            const leftLegAngle = isSittingDazed ? -1.32 : (act.fakeoutState === 'lifting' ? Math.sin(nowSec * 24) * 0.65 : walkCycle * 0.44);
+            const rightLegAngle = isSittingDazed ? 1.25 : (act.fakeoutState === 'lifting' ? -Math.sin(nowSec * 24) * 0.65 : -walkCycle * 0.44);
+
+            function drawChibiLegAndChunkyShoe(hipX, legAngle) {
+                ctx.save();
+                ctx.translate(hipX, -28);
+                ctx.rotate(legAngle);
+
+                ctx.fillStyle = "#fed7aa";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 2.4;
+                drawRoundedRectPath(ctx, -6, 0, 12, 16, 4);
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = "#ffffff";
+                drawRoundedRectPath(ctx, -6.5, 9, 13, 10, 3);
+                ctx.fill(); ctx.stroke();
+
+                ctx.translate(0, 20);
+                ctx.fillStyle = style.shoeColor;
+                drawRoundedRectPath(ctx, -10, -4, 24, 11, 5);
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = style.shoeAccent;
+                drawRoundedRectPath(ctx, -5, -2, 12, 6, 2.5);
+                ctx.fill();
+
+                ctx.fillStyle = "#e2e8f0";
+                drawRoundedRectPath(ctx, -12, 5, 27, 5.5, 3);
+                ctx.fill(); ctx.stroke();
+                ctx.restore();
+            }
+
+            drawChibiLegAndChunkyShoe(-9, leftLegAngle);
+            drawChibiLegAndChunkyShoe(9, rightLegAngle);
+
+            // Shorts / Skirt
+            ctx.fillStyle = style.bottomColor;
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 2.6;
+
+            if (style.isSkirt) {
+                ctx.beginPath();
+                ctx.moveTo(-17, -45); ctx.lineTo(17, -45);
+                ctx.lineTo(22, -24); ctx.lineTo(-22, -24);
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+            } else {
+                ctx.save();
+                ctx.rotate(leftLegAngle * 0.25);
+                drawRoundedRectPath(ctx, -20, -45, 19, 22, 5);
+                ctx.fill(); ctx.stroke();
+                if (style.hasCargoPockets) {
+                    ctx.fillStyle = style.bottomShadow;
+                    drawRoundedRectPath(ctx, -22, -39, 6, 11, 2);
+                    ctx.fill(); ctx.stroke();
+                }
+                ctx.restore();
+
+                ctx.save();
+                ctx.rotate(rightLegAngle * 0.25);
+                ctx.fillStyle = style.bottomColor;
+                drawRoundedRectPath(ctx, 1, -45, 19, 22, 5);
+                ctx.fill(); ctx.stroke();
+                if (style.hasCargoPockets) {
+                    ctx.fillStyle = style.bottomShadow;
+                    drawRoundedRectPath(ctx, 16, -39, 6, 11, 2);
+                    ctx.fill(); ctx.stroke();
+                }
+                ctx.restore();
+
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.moveTo(0, -43); ctx.lineTo(-1, -34);
+                ctx.stroke();
+            }
+
+            // Back Arm (Flails high up during UFO panic!)
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 2.6;
+            ctx.save();
+            ctx.translate(-17, -68);
+            const backArmRot = isSittingDazed
+                ? 0.55
+                : (isPanicking ? (-2.35 + Math.sin(nowSec * 22 + act.bobPhase) * 0.55) : (-walkCycle * 0.38));
+            ctx.rotate(backArmRot);
+            ctx.fillStyle = style.sleeveColor;
+            drawRoundedRectPath(ctx, -7, 0, 12, 23, 6);
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#fed7aa";
+            ctx.beginPath();
+            ctx.arc(-1, 23, 4.8, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+            ctx.restore();
+
+            // Hoodie Torso
+            const torsoGrad = ctx.createLinearGradient(-20, -76, 20, -40);
+            torsoGrad.addColorStop(0, style.topColor);
+            torsoGrad.addColorStop(1, style.topShadow);
+            ctx.fillStyle = torsoGrad;
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 2.8;
+
+            ctx.beginPath();
+            ctx.moveTo(-16, -74);
+            ctx.lineTo(16, -74);
+            ctx.quadraticCurveTo(24, -56, 20, -41);
+            ctx.lineTo(-20, -41);
+            ctx.quadraticCurveTo(-24, -56, -16, -74);
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+
+            if (style.hasHoodieGraphic) {
+                ctx.fillStyle = "#f8fafc";
+                ctx.strokeStyle = "#27272a";
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.arc(1, -58, 8.5, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+            }
+
+            if (style.hasCrossbodyBag) {
+                ctx.strokeStyle = "#18181b";
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(-13, -72);
+                ctx.lineTo(15, -45);
+                ctx.stroke();
+
+                ctx.fillStyle = "#27272a";
+                ctx.strokeStyle = "#09090b";
+                ctx.lineWidth = 2.4;
+                ctx.save();
+                ctx.translate(15, -46);
+                ctx.rotate(-0.18);
+                drawRoundedRectPath(ctx, -9, -7, 16, 13, 4);
+                ctx.fill(); ctx.stroke();
+                ctx.restore();
+            }
+
+            // Front Arm + Prop (Flails wildly during panic, rubs sore hip when sitting)
+            ctx.save();
+            ctx.translate(15, -66);
+            const activeProp = (!isAbductingSequence && !act.isBeingAbducted && act.fakeoutState === 'none' && act.targetShop) ? act.targetShop.prop : 'none';
+            if (isSittingDazed) {
+                ctx.rotate(0.45 + Math.sin(nowSec * 8) * 0.15);
+            } else if (isPanicking) {
+                ctx.rotate(-2.25 - Math.sin(nowSec * 22 + act.bobPhase) * 0.55);
+            } else if (activeProp === 'peace') {
+                ctx.rotate(-0.75 + Math.sin(nowSec * 5) * 0.08);
+            } else {
+                ctx.rotate(walkCycle * 0.38);
+            }
+
+            ctx.fillStyle = style.sleeveColor;
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 2.6;
+            drawRoundedRectPath(ctx, -6, -2, 12, 22, 6);
+            ctx.fill(); ctx.stroke();
+
+            ctx.translate(0, 21);
+            ctx.fillStyle = "#fed7aa";
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 2;
+            if ((activeProp === 'peace' || style === CHIBI_OUTFITS[0]) && !isPanicking && !isSittingDazed) {
+                drawRoundedRectPath(ctx, -4, -9, 3.8, 10, 1.8);
+                ctx.fill(); ctx.stroke();
+                drawRoundedRectPath(ctx, 1, -9, 3.8, 10, 1.8);
+                ctx.fill(); ctx.stroke();
+            }
+            ctx.beginPath();
+            ctx.arc(0, 0, 5, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            if (activeProp !== 'none' && activeProp !== 'peace') {
+                drawNpcPropInHand(activeProp, nowSec);
+            }
+            ctx.restore();
+
+            // Neck & Big Chibi Head
+            ctx.fillStyle = "#fdba74";
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 2.4;
+            drawRoundedRectPath(ctx, -6, -82, 12, 11, 4);
+            ctx.fill(); ctx.stroke();
+
+            const headTilt = isSittingDazed
+                ? Math.sin(nowSec * 6) * 0.18
+                : Math.sin(act.bobPhase * 0.9) * 0.065;
+            const headRadius = 38;
+            ctx.save();
+            ctx.translate(0, -114);
+            ctx.rotate(headTilt);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(0, 0, headRadius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+
+            const avatarImg = getAvatarImageElement(p.avatar, p.seed || 0, false);
+            if (avatarImg && avatarImg.complete && avatarImg.naturalWidth > 0) {
+                ctx.drawImage(avatarImg, -headRadius, -headRadius, headRadius * 2, headRadius * 2);
+            } else {
+                ctx.fillStyle = "#ffedd5";
+                ctx.fillRect(-headRadius, -headRadius, headRadius * 2, headRadius * 2);
+            }
+            ctx.restore();
+
+            ctx.strokeStyle = (act.isBeingAbducted || act.fakeoutState === 'lifting') ? "#4ade80" : "#1e1b4b";
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, headRadius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Flying sweat drops when panicking!
+            if (isPanicking) {
+                const swP = (nowSec * 3.5 + act.bobPhase) % 1;
+                ctx.fillStyle = "#38bdf8";
+                ctx.strokeStyle = "#0284c7";
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(-44 - swP * 14, -18 - swP * 10, 4.5 * (1 - swP * 0.5), 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(44 + swP * 14, -22 - swP * 10, 4 * (1 - swP * 0.5), 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+            }
+
+            // Orbiting Dizzy Stars when dropped sitting on the ground!
+            if (isSittingDazed) {
+                for (let s = 0; s < 3; s++) {
+                    const ang = nowSec * 5.5 + (s * Math.PI * 2) / 3;
+                    const sx = Math.cos(ang) * 34;
+                    const sy = -44 + Math.sin(ang) * 9;
+                    ctx.font = `14px ${FONT_STACK}`;
+                    ctx.textAlign = "center";
+                    ctx.fillText(s % 2 === 0 ? "⭐" : "💫", sx, sy);
+                }
+            }
+
+            ctx.restore(); // End head
+            ctx.restore(); // End flip
+
+            // Unscaled Crisp Name Tag & Auto-Wrapped Speech Bubble
+            ctx.save();
+            ctx.scale(1 / scale, 1 / scale);
+
+            if (!act.isBeingAbducted) {
+                ctx.font = `800 10.5px ${FONT_STACK}`;
+                const label = p.name;
+                const tagW = ctx.measureText(label).width + 14;
+                ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+                ctx.strokeStyle = "#fde047";
+                ctx.lineWidth = 1.6;
+                drawRoundedRectPath(ctx, -tagW / 2, 6, tagW, 18, 8);
+                ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = "#ffffff";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(label, 0, 15);
+            }
+
+            if (act.speechText && act.speechTimer > 0 && !act.isBeingAbducted) {
+                let bubbleTheme = 'resident';
+                if (act.fakeoutState === 'sitting_dazed') bubbleTheme = 'dropped';
+                else if (isAbductingSequence || act.fakeoutState === 'lifting') bubbleTheme = 'panic';
+
+                drawRPGDialogBox(
+                    ctx,
+                    0,
+                    isSittingDazed ? -98 : -112,
+                    p.name,
+                    act.speechText,
+                    bubbleTheme
+                );
+            }
+
+            ctx.restore();
+            ctx.restore();
+        }
+
+        /**************************************************************************
+         * 9. CUSTOM BOSS UFO, SEARCHLIGHT & VOLUMETRIC TRACTOR BEAM RENDERER
+         **************************************************************************/
+        const ufoState = {
+            active: false,
+            wx: -200,
+            y: 118,
+            targetWx: -200,
+            targetY: 118,
+            tilt: 0,
+            beamIntensity: 0,
+            beamMode: 'tractor', // 'search' | 'tractor'
+            panicOverlayAlpha: 0,
+            screenShake: 0
+        };
+
+        function renderBossUfoAndBeam(nowSec) {
+            if (!ufoState.active) return;
+
+            ctx.save();
+            ctx.translate(ufoState.wx - cameraX, ufoState.y + Math.sin(nowSec * 5) * 6);
+
+            // Volumetric Tractor Beam OR Suspenseful Yellow Searchlight Cone
+            if (ufoState.beamIntensity > 0.01) {
+                const isSearch = (ufoState.beamMode === 'search');
+                const topW = (isSearch ? 28 : 42) * ufoState.beamIntensity;
+                const botW = (isSearch ? 115 : 152) * ufoState.beamIntensity;
+                const groundDist = Math.max(120, viewH * 0.78 - ufoState.y);
+
+                const poolGrad = ctx.createRadialGradient(0, groundDist, 4, 0, groundDist, botW * 0.8);
+                if (isSearch) {
+                    poolGrad.addColorStop(0, `rgba(250, 204, 21, ${0.52 * ufoState.beamIntensity})`);
+                    poolGrad.addColorStop(0.6, `rgba(253, 224, 71, ${0.22 * ufoState.beamIntensity})`);
+                    poolGrad.addColorStop(1, "rgba(253, 224, 71, 0)");
+                } else {
+                    poolGrad.addColorStop(0, `rgba(74, 222, 128, ${0.62 * ufoState.beamIntensity})`);
+                    poolGrad.addColorStop(0.6, `rgba(34, 211, 238, ${0.28 * ufoState.beamIntensity})`);
+                    poolGrad.addColorStop(1, "rgba(34, 211, 238, 0)");
+                }
+                ctx.fillStyle = poolGrad;
+                ctx.beginPath();
+                ctx.ellipse(0, groundDist, botW * 0.8, 24 * ufoState.beamIntensity, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                const coneGrad = ctx.createLinearGradient(0, 22, 0, groundDist);
+                if (isSearch) {
+                    coneGrad.addColorStop(0, `rgba(254, 240, 138, ${0.72 * ufoState.beamIntensity})`);
+                    coneGrad.addColorStop(0.55, `rgba(250, 204, 21, ${0.32 * ufoState.beamIntensity})`);
+                    coneGrad.addColorStop(1, "rgba(250, 204, 21, 0)");
+                } else {
+                    coneGrad.addColorStop(0, `rgba(74, 222, 128, ${0.86 * ufoState.beamIntensity})`);
+                    coneGrad.addColorStop(0.55, `rgba(34, 211, 238, ${0.44 * ufoState.beamIntensity})`);
+                    coneGrad.addColorStop(1, "rgba(16, 185, 129, 0)");
+                }
+                ctx.fillStyle = coneGrad;
+                ctx.beginPath();
+                ctx.moveTo(-topW, 22);
+                ctx.lineTo(topW, 22);
+                ctx.lineTo(botW, groundDist);
+                ctx.lineTo(-botW, groundDist);
+                ctx.closePath();
+                ctx.fill();
+
+                // Rising Anti-Gravity Rings during Tractor Beam
+                if (!isSearch) {
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${0.68 * ufoState.beamIntensity})`;
+                    ctx.lineWidth = 2.5;
+                    for (let i = 0; i < 4; i++) {
+                        const prog = 1 - ((nowSec * 0.95 + i * 0.25) % 1);
+                        const ry = 28 + prog * (groundDist - 36);
+                        const rx = topW + prog * (botW - topW) * 0.75;
+                        ctx.beginPath();
+                        ctx.ellipse(0, ry, rx, 8 + prog * 10, 0, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            ctx.rotate(ufoState.tilt);
+
+            // Emitter Core
+            ctx.fillStyle = "#22d3ee";
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(0, 26, 44, 14, 0, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            // LARGE COCKPIT DOME WITH CUSTOM BOSS HEAD INSIDE
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(0, 4, 58, Math.PI, 0);
+            ctx.closePath();
+            ctx.fillStyle = "rgba(165, 243, 252, 0.35)";
+            ctx.fill();
+            ctx.clip();
+
+            ctx.fillStyle = "#1e1b4b";
+            drawRoundedRectPath(ctx, -28, -10, 56, 26, 10);
+            ctx.fill();
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.moveTo(0, -10); ctx.lineTo(-5, 6); ctx.lineTo(5, 6); ctx.closePath();
+            ctx.fill();
+
+            const bossRadius = 29;
+            ctx.save();
+            ctx.translate(0, -28 + Math.sin(nowSec * 8) * 2);
+            ctx.beginPath();
+            ctx.arc(0, 0, bossRadius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+            const bossImg = getAvatarImageElement(ufoBoss.avatar, 99, true);
+            if (bossImg && bossImg.complete) {
+                ctx.drawImage(bossImg, -bossRadius, -bossRadius, bossRadius * 2, bossRadius * 2);
+            }
+            ctx.restore();
+
+            ctx.strokeStyle = "#fde047";
+            ctx.lineWidth = 2.8;
+            ctx.beginPath();
+            ctx.arc(0, -28 + Math.sin(nowSec * 8) * 2, bossRadius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.strokeStyle = "#0f172a";
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.moveTo(-24, 8); ctx.lineTo(-18, -8);
+            ctx.moveTo(24, 8); ctx.lineTo(18, -8);
+            ctx.stroke();
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.arc(-18, -10, 4.5, 0, Math.PI * 2);
+            ctx.arc(18, -10, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 3.2;
+            ctx.beginPath();
+            ctx.arc(0, 4, 58, Math.PI, 0);
+            ctx.stroke();
+
+            // Gold Boss Crown
+            ctx.fillStyle = "#fbbf24";
+            ctx.strokeStyle = "#1e1b4b";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(-18, -53);
+            ctx.lineTo(-22, -70);
+            ctx.lineTo(-9, -61);
+            ctx.lineTo(0, -74);
+            ctx.lineTo(9, -61);
+            ctx.lineTo(22, -70);
+            ctx.lineTo(18, -53);
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+
+            // Metallic Saucer Hull
+            const saucerGrad = ctx.createLinearGradient(-105, 0, 105, 22);
+            saucerGrad.addColorStop(0, "#f1f5f9");
+            saucerGrad.addColorStop(0.5, "#94a3b8");
+            saucerGrad.addColorStop(1, "#475569");
+            ctx.fillStyle = saucerGrad;
+            ctx.beginPath();
+            ctx.ellipse(0, 10, 104, 24, 0, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            [-75, -45, -15, 15, 45, 75].forEach((lx, idx) => {
+                ctx.fillStyle = (Math.floor(nowSec * 9 + idx) % 2 === 0) ? "#fde047" : "#f43f5e";
+                ctx.beginPath();
+                ctx.arc(lx, 11 + (2.5 - Math.abs(idx - 2.5)) * 2.2, 6.5, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+            });
+
+            // Boss Name Plate on UFO Hull
+            ctx.fillStyle = "#1e1b4b";
+            ctx.strokeStyle = "#fde047";
+            ctx.lineWidth = 1.8;
+            drawRoundedRectPath(ctx, -56, 24, 112, 18, 6);
+            ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "#fde047";
+            ctx.font = `900 10px ${FONT_STACK}`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(`👑 ${ufoBoss.name}`, 0, 33);
+
+            // Boss Loudspeaker Broadcast Bubble (Auto-wrapped cleanly!)
+            const activeBossQuote = ufoBoss.overrideQuote || ufoBoss.slogan;
+            if (activeBossQuote) {
+                ctx.save();
+                ctx.rotate(-ufoState.tilt);
+                drawRPGDialogBox(
+                    ctx,
+                    0,
+                    -80,
+                    `📢 LOA UFO - ${ufoBoss.name}`,
+                    activeBossQuote,
+                    'boss'
+                );
+                ctx.restore();
+            }
+
+            ctx.restore();
+        }
+
+        /**************************************************************************
+         * 10. SUSPENSEFUL UFO SEARCH + FAKE-OUT DROPS + REAL ABDUCTION SEQUENCE
+         **************************************************************************/
+        const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+
+        async function startUfoAbductionSequence() {
+            if (isAbductingSequence) return;
+
+            const candidates = Array.from(actors.values());
+            if (candidates.length === 0) {
+                showToast("⚠️ Không còn cư dân nào! Hãy bấm 'Hồi Phục Đủ'.");
+                openDrawer('roster');
+                return;
+            }
+
+            isAbductingSequence = true;
+            ufoBoss.overrideQuote = null;
+            const summonBtn = document.getElementById('btn-summon-ufo');
+            summonBtn.disabled = true;
+
+            // Reset any previous sitting state
+            for (const act of actors.values()) {
+                act.fakeoutState = 'none';
+                act.liftHeight = 0;
+                act.fallVy = 0;
+            }
+
+            const shuffled = [...candidates].sort(() => Math.random() - 0.5);
+            const pickCount = Math.min(Math.max(1, Number(settings.abductCount) || 1), shuffled.length);
+            const winners = shuffled.slice(0, pickCount);
+            const winnerIdSet = new Set(winners.map(w => w.id));
+            const nonWinners = shuffled.filter(a => !winnerIdSet.has(a.id));
+            lastRoundWinnerIds = winners.map(w => w.id);
+
+            // PHASE 1: INTENSE STREET PANIC ("Chạy rối rít!")
+            playSfx('siren');
+            ufoState.panicOverlayAlpha = 0.26;
+            ufoState.screenShake = 0.55;
+            for (const act of actors.values()) {
+                act.speechText = PANIC_SPEECHES[Math.floor(Math.random() * PANIC_SPEECHES.length)];
+                act.speechTimer = 4.5;
+                act.dir = Math.random() > 0.5 ? 1 : -1;
+                act.panicZigZagTimer = 0.2 + Math.random() * 0.35;
+            }
+            shopkeeperActors.forEach((keeper, kIdx) => {
+                keeper.speechText = SHOPKEEPER_PANIC_SPEECHES[kIdx % SHOPKEEPER_PANIC_SPEECHES.length];
+                keeper.speechTimer = 4.8;
+            });
+
+            // PHASE 2: UFO ARRIVES & SWEEPS WITH SEARCHLIGHT FOR SUSPENSE
+            ufoState.active = true;
+            ufoState.wx = cameraX - 180;
+            ufoState.y = 122;
+            ufoState.targetWx = cameraX + viewW * 0.5;
+            ufoState.targetY = 122;
+            ufoState.beamMode = 'search';
+            ufoState.beamIntensity = 0.85;
+            await sleep(850);
+
+            // Suspenseful scanning sweeps over 3 random residents
+            const scanPool = [...candidates].sort(() => Math.random() - 0.5).slice(0, Math.min(3, candidates.length));
+            for (let s = 0; s < scanPool.length; s++) {
+                const scanTarget = scanPool[s];
+                ufoBoss.overrideQuote = `Đang quét radar dò nhân phẩm khu vực ${s + 1}... Ai đây ta?! 👀`;
+                targetCameraX = clampCamera(scanTarget.x - viewW / 2);
+                ufoState.targetWx = scanTarget.x;
+                playSfx('scan_ping');
+                scanTarget.speechText = "Á đừng soi đèn vô em Sếp ơi!! 😱";
+                scanTarget.speechTimer = 2.2;
+                await sleep(1050);
+            }
+
+            // PHASE 3 & 4: FAKE-OUT DROPS ("NHÁ HÀNG THẢ RƠI BỊCH XUỐNG ĐẤT") + REAL ABDUCTION
+            if (settings.abductMode === 'simultaneous' && winners.length > 1) {
+                ufoBoss.overrideQuote = "KÍCH HOẠT TIA HÚT TỔNG LỰC!! HỐT HẾT LÊN TÀU!! 🛸";
+                const avgWx = winners.reduce((acc, w) => acc + w.x, 0) / winners.length;
+                targetCameraX = clampCamera(avgWx - viewW / 2);
+                ufoState.targetWx = avgWx;
+                await sleep(850);
+
+                playSfx('beam');
+                ufoState.beamMode = 'tractor';
+                ufoState.beamIntensity = 1;
+                ufoState.screenShake = 0.5;
+
+                winners.forEach(w => {
+                    w.isBeingAbducted = true;
+                    w.abductProgress = 0;
+                    w.abductDuration = 2.6;
+                    w.abductStartX = w.x;
+                    w.abductStartY = w.y;
+                });
+
+                await sleep(2750);
+                ufoState.beamIntensity = 0;
+            } else {
+                let fakeoutPool = [...nonWinners];
+
+                for (let wIdx = 0; wIdx < winners.length; wIdx++) {
+                    const realWinner = winners[wIdx];
+
+                    // Perform 1 or 2 Fake-out Drops before abducting the real winner!
+                    const numFakeouts = fakeoutPool.length >= 2 ? (wIdx === 0 ? 2 : 1) : (fakeoutPool.length === 1 ? 1 : 0);
+
+                    for (let f = 0; f < numFakeouts; f++) {
+                        const victim = fakeoutPool.shift();
+                        if (!victim) break;
+
+                        // 1. Fly to fake-out victim & lock searchlight
+                        ufoBoss.overrideQuote = `Đã khóa mục tiêu: ${victim.participant.name}! Chuẩn bị kéo lên đĩa bay! 🎯`;
+                        targetCameraX = clampCamera(victim.x - viewW / 2);
+                        ufoState.targetWx = victim.x;
+                        ufoState.beamMode = 'search';
+                        ufoState.beamIntensity = 0.9;
+                        playSfx('scan_ping');
+                        await sleep(950);
+
+                        // 2. Activate Tractor Beam & slowly lift victim halfway up (~145px)
+                        playSfx('beam');
+                        ufoState.beamMode = 'tractor';
+                        ufoState.beamIntensity = 1;
+                        ufoState.screenShake = 0.35;
+
+                        victim.fakeoutState = 'lifting';
+                        victim.liftHeight = 0;
+                        victim.speechText = FAKEOUT_LIFT_SCREAMS[Math.floor(Math.random() * FAKEOUT_LIFT_SCREAMS.length)];
+                        victim.speechTimer = 3.0;
+                        spawnEmote(victim.x, victim.y - 110, "😱");
+
+                        // Suspenseful 2.2-second mid-air lift!
+                        await sleep(2200);
+
+                        // 3. SUDDEN BOSS CHANGE OF MIND -> CUT BEAM & DROP!
+                        ufoBoss.overrideQuote = BOSS_FAKEOUT_DROP_QUOTES[Math.floor(Math.random() * BOSS_FAKEOUT_DROP_QUOTES.length)];
+                        playSfx('power_down');
+                        ufoState.beamIntensity = 0;
+                        victim.fakeoutState = 'falling';
+                        victim.fallVy = 0;
+
+                        // Wait for gravity fall to slam onto the sidewalk ("BỊCH!!")
+                        await sleep(850);
+
+                        // Brief pause so user can laugh at the character sitting dazed on the ground
+                        await sleep(950);
+                    }
+
+                    // NOW FLY TO THE REAL WINNER FOR DRAMATIC FULL ABDUCTION!
+                    ufoBoss.overrideQuote = `Mục tiêu chính thức đây rồi: ${realWinner.participant.name}! Khỏi chạy thoát nha em!! 🛸⚡`;
+                    targetCameraX = clampCamera(realWinner.x - viewW / 2);
+                    ufoState.targetWx = realWinner.x;
+                    ufoState.beamMode = 'search';
+                    ufoState.beamIntensity = 0.95;
+                    playSfx('scan_ping');
+                    realWinner.speechText = "Thôi xong, tới lượt em thiệt rồi bà con ơi!! 😭🛸";
+                    realWinner.speechTimer = 2.6;
+                    await sleep(1050);
+
+                    playSfx('beam');
+                    ufoState.beamMode = 'tractor';
+                    ufoState.beamIntensity = 1;
+                    ufoState.screenShake = 0.45;
+
+                    realWinner.isBeingAbducted = true;
+                    realWinner.abductProgress = 0;
+                    realWinner.abductDuration = 2.65; // Slower, more suspenseful full abduction!
+                    realWinner.abductStartX = realWinner.x;
+                    realWinner.abductStartY = realWinner.y;
+                    spawnEmote(realWinner.x, realWinner.y - 110, "🛸");
+
+                    await sleep(2750);
+                    ufoState.beamIntensity = 0;
+                    await sleep(300);
+                }
+            }
+
+            const winParticipants = winners.map(w => w.participant);
+            winParticipants.forEach(p => { p.abducted = true; });
+
+            const nowStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            abductionHistory.unshift({
+                id: 'round_' + Date.now(),
+                time: nowStr,
+                bossName: ufoBoss.name,
+                winners: winParticipants.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    avatar: p.avatar,
+                    seed: p.seed
+                }))
+            });
+
+            saveState();
+            renderRosterUI();
+            renderHistoryUI();
+
+            // PHASE 5: UFO ZOOMS OFF INTO THE SKY
+            ufoBoss.overrideQuote = "Đã bắt đủ chỉ tiêu! Hẹn gặp lại trên Tàu Mẹ nha anh em!! 🚀";
+            ufoState.panicOverlayAlpha = 0;
+            ufoState.targetWx = cameraX + viewW + 260;
+            ufoState.targetY = -160;
+            await sleep(800);
+
+            ufoState.active = false;
+            ufoBoss.overrideQuote = null;
+            isAbductingSequence = false;
+            summonBtn.disabled = false;
+
+            randomizeSkyTheme();
+            syncStreetActors();
+            showWinnersModal(winParticipants);
+        }
+
+        /**************************************************************************
+         * 11. MAIN 60FPS ANIMATION LOOP & PHYSICS (LIFT, GRAVITY DROP & PANIC)
+         **************************************************************************/
+        let lastTime = performance.now();
+
+        function animateLoop(now) {
+            const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000));
+            lastTime = now;
+            const nowSec = now / 1000;
+
+            cameraX += (targetCameraX - cameraX) * Math.min(1, dt * 8.5);
+            updatePanSliderUI();
+
+            clouds.forEach(c => {
+                c.wx += c.speed * dt;
+                if (c.wx > WORLD_WIDTH + 140) c.wx = -140;
+            });
+
+            shopkeeperActors.forEach(keeper => {
+                if (keeper.speechTimer > 0) {
+                    keeper.speechTimer -= dt;
+                    if (keeper.speechTimer <= 0) keeper.speechText = null;
+                }
+                keeper.idleCooldown -= dt;
+                if (keeper.idleCooldown <= 0) {
+                    keeper.idleCooldown = 6.5 + Math.random() * 6.5;
+                    if (!keeper.speechText) {
+                        const qList = isAbductingSequence ? SHOPKEEPER_PANIC_SPEECHES : keeper.shop.keeper.idleQuotes;
+                        keeper.speechText = qList[Math.floor(Math.random() * qList.length)];
+                        keeper.speechTimer = 3.5;
+                    }
+                }
+            });
+
+            const yBounds = getSidewalkYBounds();
+
+            for (const act of actors.values()) {
+                act.bobPhase += dt * (isAbductingSequence ? 16 : 5.2);
+
+                if (act.speechTimer > 0) {
+                    act.speechTimer -= dt;
+                    if (act.speechTimer <= 0) act.speechText = null;
+                }
+
+                // 1. Real Full Abduction Progress
+                if (act.isBeingAbducted) {
+                    act.abductProgress = Math.min(1, act.abductProgress + dt / (act.abductDuration || 2.6));
+                    continue;
+                }
+
+                // 2. Fake-out Mid-Air Lift State
+                if (act.fakeoutState === 'lifting') {
+                    // Gently pull toward UFO X and lift up to ~150px off ground
+                    act.x += (ufoState.wx - act.x) * Math.min(1, dt * 4.5);
+                    act.liftHeight = Math.min(155, (act.liftHeight || 0) + 72 * dt);
+                    continue;
+                }
+
+                // 3. Fake-out Gravity Free-Fall State ("Rơi bịch xuống đất!")
+                if (act.fakeoutState === 'falling') {
+                    act.fallVy = (act.fallVy || 0) + 920 * dt; // Gravity acceleration
+                    act.liftHeight = (act.liftHeight || 0) - act.fallVy * dt;
+
+                    if (act.liftHeight <= 0) {
+                        act.liftHeight = 0;
+                        act.fallVy = 0;
+                        act.fakeoutState = 'sitting_dazed';
+                        act.sitTimer = 5.5;
+                        act.speechText = DROPPED_RELIEF_QUOTES[Math.floor(Math.random() * DROPPED_RELIEF_QUOTES.length)];
+                        act.speechTimer = 4.8;
+
+                        // Trigger "BỊCH!!" impact effects
+                        playSfx('thud');
+                        ufoState.screenShake = 0.38;
+                        spawnDustBurst(act.x, act.y);
+                        spawnEmote(act.x, act.y - 80, "💥 BỊCH!!");
+                    }
+                    continue;
+                }
+
+                // 4. Sitting Dazed on Pavement State
+                if (act.fakeoutState === 'sitting_dazed') {
+                    act.sitTimer -= dt;
+                    if (act.sitTimer <= 0 && !isAbductingSequence) {
+                        act.fakeoutState = 'none';
+                        assignBustlingShopVisit(act, false);
+                    }
+                    continue;
+                }
+
+                // 5. Frantic Crowd Panic ("Chạy rối rít khi thấy UFO!")
+                if (isAbductingSequence) {
+                    act.walkPhase += dt * 26; // Super fast leg cycle
+                    act.panicZigZagTimer -= dt;
+                    if (act.panicZigZagTimer <= 0) {
+                        act.panicZigZagTimer = 0.32 + Math.random() * 0.55;
+                        if (Math.random() < 0.72) act.dir *= -1;
+                        act.panicVy = (Math.random() - 0.5) * 95;
+                        if (!act.speechText && Math.random() < 0.45) {
+                            act.speechText = PANIC_SPEECHES[Math.floor(Math.random() * PANIC_SPEECHES.length)];
+                            act.speechTimer = 2.6;
+                        }
+                    }
+
+                    // Run 3.0x faster in zig-zag!
+                    act.x += act.dir * act.speed * 2.95 * dt;
+                    act.y += (act.panicVy || 0) * dt;
+
+                    if (act.x <= 65) { act.x = 65; act.dir = 1; }
+                    else if (act.x >= WORLD_WIDTH - 65) { act.x = WORLD_WIDTH - 65; act.dir = -1; }
+                    act.y = Math.max(yBounds.minY, Math.min(yBounds.maxY, act.y));
+                } else {
+                    // Normal Bustling Street Life
+                    if (act.aiState === 'walking_to_shop') {
+                        const dx = act.targetX - act.x;
+                        const dy = act.targetY - act.y;
+                        const dist = Math.hypot(dx, dy);
+
+                        if (dist < 14 || act.stateTimer <= 0) {
+                            act.aiState = 'interacting_shop';
+                            act.stateTimer = 2.6 + Math.random() * 2.6;
+                            if (act.targetShop) {
+                                triggerTwoWayShopInteraction(act, act.targetShop);
+                            }
+                        } else {
+                            act.dir = dx >= 0 ? 1 : -1;
+                            act.walkPhase += dt * 11.5;
+                            act.x += (dx / dist) * act.speed * dt;
+                            act.y += (dy / dist) * act.speed * 0.65 * dt;
+                            act.stateTimer -= dt;
+                        }
+                    } else {
+                        act.stateTimer -= dt;
+                        if (act.stateTimer <= 0) {
+                            assignBustlingShopVisit(act, false);
+                        }
+                    }
+
+                    act.x = Math.max(60, Math.min(WORLD_WIDTH - 60, act.x));
+                    act.y = Math.max(yBounds.minY, Math.min(yBounds.maxY, act.y));
+                }
+            }
+
+            // Smooth UFO Interpolation in World Space
+            if (ufoState.active) {
+                const dx = ufoState.targetWx - ufoState.wx;
+                const dy = ufoState.targetY - ufoState.y;
+                ufoState.wx += dx * Math.min(1, dt * 6.5);
+                ufoState.y += dy * Math.min(1, dt * 6.5);
+                ufoState.tilt = Math.max(-0.22, Math.min(0.22, dx * 0.0012));
+            }
+
+            // Render Frame
+            ctx.save();
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            if (ufoState.screenShake > 0) {
+                ufoState.screenShake = Math.max(0, ufoState.screenShake - dt);
+                ctx.translate((Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9);
+            }
+
+            renderPanoramicTownWorld(nowSec);
+
+            // Render Shopkeepers, Dust Clouds & Depth-Sorted Residents in World Coordinates
+            ctx.save();
+            ctx.translate(-cameraX, 0);
+
+            shopkeeperActors.forEach(keeper => drawShopkeeperNpc(keeper, nowSec));
+
+            const sorted = Array.from(actors.values()).sort((a, b) => a.y - b.y);
+            for (const act of sorted) {
+                if (!act.isBeingAbducted && act.fakeoutState !== 'lifting') {
+                    drawChibiActor(act, nowSec);
+                }
+            }
+
+            // Render Impact Dust Cloud Particles ("BỊCH!!")
+            for (let i = dustParticles.length - 1; i >= 0; i--) {
+                const dp = dustParticles[i];
+                dp.life += dt;
+                if (dp.life >= dp.maxLife) {
+                    dustParticles.splice(i, 1);
+                    continue;
+                }
+                dp.wx += dp.vx * dt;
+                dp.wy += dp.vy * dt;
+                const alpha = Math.max(0, 1 - dp.life / dp.maxLife);
+                ctx.save();
+                ctx.fillStyle = `rgba(226, 232, 240, ${alpha * 0.85})`;
+                ctx.strokeStyle = `rgba(71, 85, 105, ${alpha * 0.7})`;
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                ctx.arc(dp.wx, dp.wy, dp.radius * (1 + dp.life * 0.8), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            ctx.restore();
+
+            // Purple Panic Tint
+            if (ufoState.panicOverlayAlpha > 0.01) {
+                ctx.fillStyle = `rgba(88, 28, 135, ${ufoState.panicOverlayAlpha})`;
+                ctx.fillRect(0, 0, viewW, viewH);
+            }
+
+            // Render Boss UFO & Abducting/Lifting Characters inside Beam
+            renderBossUfoAndBeam(nowSec);
+
+            ctx.save();
+            ctx.translate(-cameraX, 0);
+            for (const act of sorted) {
+                if (act.isBeingAbducted || act.fakeoutState === 'lifting') {
+                    drawChibiActor(act, nowSec);
+                }
+            }
+
+            // Floating Emote Particles
+            for (let i = floatingEmotes.length - 1; i >= 0; i--) {
+                const em = floatingEmotes[i];
+                em.life += dt;
+                if (em.life >= em.maxLife) {
+                    floatingEmotes.splice(i, 1);
+                    continue;
+                }
+                em.wx += em.vx * dt;
+                em.wy += em.vy * dt;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, 1 - em.life / em.maxLife);
+                ctx.font = `900 16px ${FONT_STACK}`;
+                ctx.fillStyle = "#fde047";
+                ctx.strokeStyle = "#1e1b4b";
+                ctx.lineWidth = 3;
+                ctx.textAlign = "center";
+                ctx.strokeText(em.text, em.wx, em.wy);
+                ctx.fillText(em.text, em.wx, em.wy);
+                ctx.restore();
+            }
+            ctx.restore();
+
+            ctx.restore();
+            requestAnimationFrame(animateLoop);
+        }
+
+        /**************************************************************************
+         * 12. UI DRAWERS, BOSS UPLOAD & MODAL HANDLERS
+         **************************************************************************/
+        const drawerHistory = document.getElementById('drawer-history');
+        const drawerRoster = document.getElementById('drawer-roster');
+        const backdrop = document.getElementById('drawer-backdrop');
+
+        function openDrawer(which) {
+            backdrop.classList.remove('hidden');
+            requestAnimationFrame(() => backdrop.classList.remove('opacity-0'));
+            if (which === 'history') {
+                drawerHistory.classList.remove('drawer-left-closed');
+                drawerHistory.classList.add('drawer-open');
+                drawerRoster.classList.remove('drawer-open');
+                drawerRoster.classList.add('drawer-right-closed');
+            } else {
+                drawerRoster.classList.remove('drawer-right-closed');
+                drawerRoster.classList.add('drawer-open');
+                drawerHistory.classList.remove('drawer-open');
+                drawerHistory.classList.add('drawer-left-closed');
+            }
+        }
+
+        function closeDrawers() {
+            drawerHistory.classList.remove('drawer-open');
+            drawerHistory.classList.add('drawer-left-closed');
+            drawerRoster.classList.remove('drawer-open');
+            drawerRoster.classList.add('drawer-right-closed');
+            backdrop.classList.add('opacity-0');
+            setTimeout(() => backdrop.classList.add('hidden'), 220);
+        }
+
+        document.getElementById('btn-open-history').addEventListener('click', () => openDrawer('history'));
+        document.getElementById('btn-close-history').addEventListener('click', closeDrawers);
+        document.getElementById('btn-open-roster').addEventListener('click', () => openDrawer('roster'));
+        document.getElementById('btn-close-roster').addEventListener('click', closeDrawers);
+        backdrop.addEventListener('click', closeDrawers);
+
+        function showToast(msg) {
+            const box = document.getElementById('toast-box');
+            box.textContent = msg;
+            box.classList.remove('opacity-0');
+            setTimeout(() => box.classList.add('opacity-0'), 2200);
+        }
+
+        document.getElementById('input-boss-file').addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const c = document.createElement('canvas');
+                    c.width = 160;
+                    c.height = 160;
+                    const g = c.getContext('2d');
+                    const minDim = Math.min(img.width, img.height);
+                    const sx = (img.width - minDim) / 2;
+                    const sy = (img.height - minDim) / 2;
+                    g.drawImage(img, sx, sy, minDim, minDim, 0, 0, 160, 160);
+                    ufoBoss.avatar = c.toDataURL('image/jpeg', 0.88);
+                    document.getElementById('preview-boss-img').src = ufoBoss.avatar;
+                    saveState();
+                    showToast("👑 Đã cập nhật ảnh Người Lái UFO!");
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('input-boss-name').addEventListener('input', (e) => {
+            ufoBoss.name = e.target.value.trim() || "Sếp Tổng";
+            saveState();
+        });
+
+        document.getElementById('input-boss-slogan').addEventListener('input', (e) => {
+            ufoBoss.slogan = e.target.value.trim();
+            saveState();
+        });
+
+        function renderRosterUI() {
+            const listEl = document.getElementById('roster-list');
+            listEl.innerHTML = '';
+
+            participants.forEach((p) => {
+                const outfitName = CHIBI_OUTFITS[p.outfitIndex % CHIBI_OUTFITS.length].name;
+                const row = document.createElement('div');
+                row.className = `flex items-center justify-between gap-2.5 p-2.5 rounded-xl border-2 ${
+                    p.abducted ? 'bg-slate-900/50 border-slate-800 opacity-60' : 'bg-slate-800 border-slate-700'
+                }`;
+
+                row.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <img src="${p.avatar}" alt="${p.name}" class="w-10 h-10 rounded-full object-cover border-2 border-amber-400 shrink-0 bg-slate-700">
+                        <div class="min-w-0">
+                            <div class="text-white font-bold text-xs truncate">${p.name}</div>
+                            <div class="text-slate-400 text-[10px] truncate">${outfitName}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button data-toggle="${p.id}" class="w-8 h-8 rounded-lg ${
+                            p.abducted ? 'bg-amber-400 text-indigo-950' : 'bg-slate-700 text-slate-200'
+                        } flex items-center justify-center text-sm cursor-pointer" title="${p.abducted ? 'Đưa trở lại phố' : 'Tạm ẩn'}">
+                            <i class="ph-bold ${p.abducted ? 'ph-eye-closed' : 'ph-eye'}"></i>
+                        </button>
+                        <button data-del="${p.id}" class="w-8 h-8 rounded-lg bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white flex items-center justify-center text-sm transition cursor-pointer" title="Xóa">
+                            <i class="ph-bold ph-trash"></i>
+                        </button>
+                    </div>
+                `;
+                listEl.appendChild(row);
+            });
+
+            listEl.querySelectorAll('[data-toggle]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-toggle');
+                    const found = participants.find(x => x.id === id);
+                    if (found) {
+                        found.abducted = !found.abducted;
+                        saveState();
+                        syncStreetActors();
+                        renderRosterUI();
+                    }
+                });
+            });
+
+            listEl.querySelectorAll('[data-del]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-del');
+                    participants = participants.filter(x => x.id !== id);
+                    saveState();
+                    syncStreetActors();
+                    renderRosterUI();
+                });
+            });
+
+            updateHudCounters();
+        }
+
+        function renderHistoryUI() {
+            const container = document.getElementById('history-list');
+            container.innerHTML = '';
+            updateHudCounters();
+
+            if (abductionHistory.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 px-4 bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-700">
+                        <i class="ph-duotone ph-flying-saucer text-4xl text-slate-400 mb-2"></i>
+                        <p class="text-slate-300 font-bold text-xs">Chưa có lượt bắt cóc nào</p>
+                        <p class="text-slate-500 text-[11px] mt-1">Bấm "TRIỆU HỒI UFO" để Sếp đi bắt nhân viên</p>
+                    </div>
+                `;
+                return;
+            }
+
+            abductionHistory.forEach((entry, idx) => {
+                const roundNum = abductionHistory.length - idx;
+                const card = document.createElement('div');
+                card.className = "bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-3.5 space-y-2.5 shadow-md";
+
+                const chips = entry.winners.map(w => `
+                    <div class="inline-flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-full pr-3 pl-1 py-1">
+                        <img src="${w.avatar}" class="w-6 h-6 rounded-full object-cover border border-amber-400" alt="${w.name}">
+                        <span class="text-white font-bold text-xs">${w.name}</span>
+                    </div>
+                `).join('');
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between border-b border-slate-700 pb-2">
+                        <span class="bg-purple-500/20 text-purple-300 border border-purple-500/40 px-2.5 py-0.5 rounded-full font-black text-[11px]">
+                            Lượt #${roundNum} • 👑 ${entry.bossName || ufoBoss.name}
+                        </span>
+                        <span class="text-slate-400 font-semibold text-[11px] flex items-center gap-1">
+                            <i class="ph-bold ph-clock"></i> ${entry.time}
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 pt-0.5">${chips}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        let pendingUploadedAvatar = null;
+        document.getElementById('input-face-file').addEventListener('change', (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const c = document.createElement('canvas');
+                    c.width = 160;
+                    c.height = 160;
+                    const g = c.getContext('2d');
+                    const minDim = Math.min(img.width, img.height);
+                    const sx = (img.width - minDim) / 2;
+                    const sy = (img.height - minDim) / 2;
+                    g.drawImage(img, sx, sy, minDim, minDim, 0, 0, 160, 160);
+                    pendingUploadedAvatar = c.toDataURL('image/jpeg', 0.86);
+                    const prev = document.getElementById('preview-upload-img');
+                    prev.src = pendingUploadedAvatar;
+                    prev.classList.remove('hidden');
+                    document.getElementById('preview-upload-placeholder').classList.add('hidden');
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('btn-add-person').addEventListener('click', () => {
+            const nameInput = document.getElementById('input-person-name');
+            const name = nameInput.value.trim();
+            if (!name) {
+                showToast("⚠️ Vui lòng nhập tên cư dân!");
+                return;
+            }
+            const outfitVal = parseInt(document.getElementById('select-person-outfit').value, 10);
+            const seed = participants.length;
+            const newPerson = {
+                id: 'p_' + Date.now(),
+                name: name,
+                avatar: pendingUploadedAvatar || generateCleanChibiHeadDataUrl(seed, false),
+                outfitIndex: outfitVal >= 0 ? outfitVal : (seed % CHIBI_OUTFITS.length),
+                abducted: false,
+                seed: seed
+            };
+            participants.unshift(newPerson);
+            nameInput.value = '';
+            pendingUploadedAvatar = null;
+            document.getElementById('preview-upload-img').classList.add('hidden');
+            document.getElementById('preview-upload-placeholder').classList.remove('hidden');
+
+            saveState();
+            syncStreetActors();
+            renderRosterUI();
+            playSfx('pop');
+            showToast(`✅ Đã thêm ${name} vào khu phố!`);
+        });
+
+        document.getElementById('input-abduct-count').addEventListener('change', (e) => {
+            settings.abductCount = Math.max(1, parseInt(e.target.value, 10) || 1);
+            saveState();
+            updateHudCounters();
+        });
+        document.getElementById('select-abduct-mode').addEventListener('change', (e) => {
+            settings.abductMode = e.target.value;
+            saveState();
+        });
+        document.getElementById('toggle-hide-abducted').addEventListener('change', (e) => {
+            settings.hideAbducted = e.target.checked;
+            saveState();
+            syncStreetActors();
+        });
+
+        document.getElementById('btn-load-demo').addEventListener('click', () => {
+            participants = createDemoParticipants();
+            saveState();
+            syncStreetActors();
+            renderRosterUI();
+            showToast("✨ Đã tạo 18 cư dân mẫu chạy lăng xăng khắp phố!");
+        });
+
+        document.getElementById('btn-restore-all').addEventListener('click', () => {
+            participants.forEach(p => { p.abducted = false; });
+            saveState();
+            syncStreetActors();
+            renderRosterUI();
+            showToast("🔄 Đã đưa toàn bộ cư dân trở lại khu phố!");
+        });
+
+        document.getElementById('btn-clear-all').addEventListener('click', () => {
+            participants = [];
+            saveState();
+            syncStreetActors();
+            renderRosterUI();
+            showToast("🗑️ Đã xóa danh sách cư dân.");
+        });
+
+        document.getElementById('btn-copy-history').addEventListener('click', () => {
+            if (abductionHistory.length === 0) {
+                showToast("⚠️ Chưa có lịch sử để sao chép!");
+                return;
+            }
+            const text = abductionHistory.map((h, i) =>
+                `Lượt #${abductionHistory.length - i} (${h.time} - UFO ${h.bossName || ufoBoss.name}): ${h.winners.map(w => w.name).join(', ')}`
+            ).join('\n');
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            showToast("📋 Đã sao chép kết quả vào bộ nhớ tạm!");
+        });
+
+        document.getElementById('btn-clear-history').addEventListener('click', () => {
+            abductionHistory = [];
+            saveState();
+            renderHistoryUI();
+            showToast("🗑️ Đã xóa nhật ký bắt cóc.");
+        });
+
+        document.getElementById('btn-sound').addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('icon-sound');
+            icon.className = soundEnabled ? 'ph-fill ph-speaker-high' : 'ph-fill ph-speaker-slash';
+            showToast(soundEnabled ? "🔊 Đã bật âm thanh" : "🔇 Đã tắt âm thanh");
+        });
+
+        function showWinnersModal(winList) {
+            playSfx('win');
+            if (typeof confetti === 'function') {
+                confetti({ particleCount: 95, spread: 80, origin: { y: 0.55 } });
+            }
+            document.getElementById('modal-boss-avatar').src = ufoBoss.avatar;
+            document.getElementById('modal-boss-title').textContent = `Tàu Mẹ Của ${ufoBoss.name}`;
+
+            const grid = document.getElementById('winners-grid');
+            grid.innerHTML = '';
+
+            winList.forEach(p => {
+                const outfitName = CHIBI_OUTFITS[p.outfitIndex % CHIBI_OUTFITS.length].name;
+                const card = document.createElement('div');
+                card.className = "bg-slate-800 border-3 border-emerald-400 rounded-2xl p-4 flex flex-col items-center text-center shadow-lg";
+                card.innerHTML = `
+                    <div class="relative mb-2">
+                        <img src="${p.avatar}" alt="${p.name}" class="w-20 h-20 rounded-full object-cover border-4 border-amber-300 shadow-md bg-slate-700">
+                        <span class="absolute -bottom-1 -right-1 bg-emerald-400 text-indigo-950 w-7 h-7 rounded-full flex items-center justify-center font-black text-sm border-2 border-indigo-950">🛸</span>
+                    </div>
+                    <h3 class="text-white font-black text-base">${p.name}</h3>
+                    <p class="text-emerald-300 text-xs font-semibold mt-0.5">${outfitName}</p>
+                `;
+                grid.appendChild(card);
+            });
+
+            const modal = document.getElementById('modal-winners');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeWinnersModal() {
+            const modal = document.getElementById('modal-winners');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        document.getElementById('btn-close-winners').addEventListener('click', closeWinnersModal);
+
+        document.getElementById('btn-reroll-round').addEventListener('click', () => {
+            lastRoundWinnerIds.forEach(id => {
+                const found = participants.find(p => p.id === id);
+                if (found) found.abducted = false;
+            });
+            if (abductionHistory.length > 0) abductionHistory.shift();
+            saveState();
+            syncStreetActors();
+            renderRosterUI();
+            renderHistoryUI();
+            closeWinnersModal();
+            startUfoAbductionSequence();
+        });
+
+        document.getElementById('btn-summon-ufo').addEventListener('click', () => {
+            closeDrawers();
+            startUfoAbductionSequence();
+        });
+
+        // Boot Application
+        randomizeSkyTheme();
+        initShopkeeperNpcs();
+        loadState();
+        requestAnimationFrame(animateLoop);
+    </script>
+</body>
+</html>
