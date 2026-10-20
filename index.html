@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Khu Phố Chợ Đầu Mối 3400px - UFO Sếp Đi Bắt Cóc</title>
+    <title>Random UFO</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Canvas Confetti CDN -->
@@ -68,6 +68,20 @@
         .drawer-open {
             transform: translate3d(0, 0, 0);
         }
+        /* Cinema Mode Hide Transitions */
+        .hud-cinema-transition {
+            transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .hud-top-hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translate3d(0, -24px, 0);
+        }
+        .hud-bottom-hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translate3d(-50%, 24px, 0) !important;
+        }
         /* Custom Scrollbar */
         .custom-scroll::-webkit-scrollbar {
             width: 6px;
@@ -111,12 +125,12 @@
     <!-- FULLSCREEN 3400px PANORAMIC 2.5D VIETNAMESE STREET MARKET CANVAS -->
     <canvas id="street-canvas"></canvas>
 
-    <!-- COMPACT TOP-RIGHT CONTROL CLUSTER ONLY (NO TOP-LEFT TITLE BANNER) -->
-    <nav class="fixed top-3 right-3 z-20 flex flex-wrap items-center justify-end gap-2 pointer-events-none">
+    <!-- COMPACT TOP-RIGHT CONTROL CLUSTER ONLY (AUTO-HIDES DURING SUMMON) -->
+    <nav id="top-control-nav" class="hud-cinema-transition fixed top-3 right-3 z-20 flex flex-wrap items-center justify-end gap-2 pointer-events-none">
         <!-- Main Summon UFO Button -->
         <button id="btn-summon-ufo" class="pointer-events-auto arcade-btn bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400 text-indigo-950 font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl flex items-center gap-2 tracking-wide uppercase">
             <i class="ph-fill ph-flying-saucer text-xl"></i>
-            <span>TRIỆU HỒI UFO</span>
+            <span>Random</span>
         </button>
 
         <!-- Participant, Boss UFO & Settings Drawer Button -->
@@ -138,8 +152,8 @@
         </button>
     </nav>
 
-    <!-- SUBTLE CAMERA PAN CONTROLS AT VERY BOTTOM (FOR 3400px WIDE MAP) -->
-    <div class="fixed bottom-2.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-slate-900/75 backdrop-blur-xs border-2 border-indigo-950 px-3 py-1.5 rounded-full shadow-lg pointer-events-auto">
+    <!-- SUBTLE CAMERA PAN CONTROLS AT VERY BOTTOM (AUTO-HIDES DURING SUMMON) -->
+    <div id="bottom-pan-bar" class="hud-cinema-transition fixed bottom-2.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-slate-900/75 backdrop-blur-xs border-2 border-indigo-950 px-3 py-1.5 rounded-full shadow-lg pointer-events-auto">
         <button id="btn-pan-left" class="w-7 h-7 rounded-full bg-amber-300 hover:bg-amber-400 text-indigo-950 border-2 border-indigo-950 flex items-center justify-center font-black text-sm active:scale-90 transition cursor-pointer" title="Lướt sang trái">
             <i class="ph-bold ph-caret-left"></i>
         </button>
@@ -161,7 +175,7 @@
                 </div>
                 <div>
                     <h2 class="text-white font-black text-base uppercase tracking-wide">Nhật Ký Bắt Cóc</h2>
-                    <p class="text-purple-200 text-xs font-medium">Lịch sử các lượt UFO Sếp ghé khu phố</p>
+                    <p class="text-purple-200 text-xs font-medium">Lịch sử các lượt UFO ghé khu phố</p>
                 </div>
             </div>
             <button id="btn-close-history" class="w-9 h-9 rounded-xl bg-slate-900/50 hover:bg-rose-500 text-white flex items-center justify-center transition cursor-pointer">
@@ -206,7 +220,7 @@
             <div class="bg-gradient-to-br from-indigo-950 via-slate-800 to-purple-950 border-2 border-amber-400 rounded-2xl p-3.5 space-y-3 shadow-lg">
                 <div class="flex items-center justify-between">
                     <h3 class="text-amber-300 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
-                        <i class="ph-fill ph-crown text-base"></i> NGƯỜI NGỒI LÁI UFO (SẾP / BOSS)
+                        <i class="ph-fill ph-crown text-base"></i> NGƯỜI NGỒI LÁI UFO (BOSS)
                     </h3>
                     <span class="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full text-[10px] font-bold">Lái Đĩa Bay</span>
                 </div>
@@ -224,7 +238,7 @@
 
                     <div class="flex-1 space-y-2">
                         <div>
-                            <label class="block text-slate-300 text-[10px] font-bold mb-0.5">Tên Người Lái UFO (Sếp / HR):</label>
+                            <label class="block text-slate-300 text-[10px] font-bold mb-0.5">Tên Người Lái UFO :</label>
                             <input id="input-boss-name" type="text" value="Sếp Tổng" placeholder="VD: Sếp Tổng, Chị HR..." class="w-full bg-slate-900 border-2 border-slate-600 focus:border-amber-400 rounded-xl px-2.5 py-1.5 text-amber-300 font-black text-xs outline-none">
                         </div>
                         <div>
@@ -633,11 +647,19 @@
             "Loa phường báo động đỏ rồi anh em ơi!! 🚨"
         ];
 
-        const FAKEOUT_LIFT_SCREAMS = [
+        // Unified scream & lock-on quotes used identically for BOTH fake-out and real catch!
+        const UNIFIED_LIFT_SCREAMS = [
             "Á á á cứu tôi với!! Sao lại hút tôi?! 😱",
             "Sếp ơi tha cho em, em còn chưa ăn hết tô bún bò!! 😭",
             "Ối giời ơi cao quá, đừng bắt em Sếp ơi!! 🛸",
-            "Cứu mạng bà con ơi, chân tôi rời mặt đất rồi!! ⚡"
+            "Cứu mạng bà con ơi, chân tôi rời mặt đất rồi!! ⚡",
+            "Á á bị tia hút nhấc bổng lên trời rồi bà con ơi!! 😱"
+        ];
+
+        const BOSS_LOCKON_QUOTES = [
+            "Đã khóa mục tiêu: {name}! Kích hoạt tia hút kéo lên đĩa bay! 🎯",
+            "Radar phát hiện {name}! Bật công tắc hút lên Tàu Mẹ xem nào! 🛸",
+            "Chốt tọa độ {name}! Kéo lên kiểm tra nhân phẩm ngay! ⚡"
         ];
 
         const BOSS_FAKEOUT_DROP_QUOTES = [
@@ -645,6 +667,12 @@
             "Chú em này nặng quá rớt KPI, bỏ qua!",
             "Thôi tha mạng cho chú em này, kiếm người khác!",
             "Tín hiệu báo chưa tới số, thả rơi tự do luôn!"
+        ];
+
+        const BOSS_CATCH_CONFIRM_QUOTES = [
+            "Đúng người đây rồi! Hốt gọn {name} vào khoang Tàu Mẹ!! 🛸✨",
+            "Nhân phẩm tuyệt vời! Chốt đơn đưa {name} lên đĩa bay luôn!! 🚀",
+            "Không trượt phát nào! Mời {name} vào buồng lái nhận thưởng!! 🎉"
         ];
 
         const DROPPED_RELIEF_QUOTES = [
@@ -968,8 +996,19 @@
                 gain.connect(ctxA.destination);
                 osc.start(now);
                 osc.stop(now + 1.95);
+            } else if (type === 'suck_in') {
+                const osc = ctxA.createOscillator();
+                const gain = ctxA.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(480, now);
+                osc.frequency.exponentialRampToValueAtTime(1320, now + 0.45);
+                gain.gain.setValueAtTime(0.16, now);
+                gain.gain.exponentialRampToValueAtTime(0.008, now + 0.48);
+                osc.connect(gain);
+                gain.connect(ctxA.destination);
+                osc.start(now);
+                osc.stop(now + 0.5);
             } else if (type === 'power_down') {
-                // UFO sputter & cancel beam sound
                 const osc = ctxA.createOscillator();
                 const gain = ctxA.createGain();
                 osc.type = 'sawtooth';
@@ -982,7 +1021,6 @@
                 osc.start(now);
                 osc.stop(now + 0.5);
             } else if (type === 'thud') {
-                // Heavy "BỊCH!!" impact when hitting the pavement
                 const osc = ctxA.createOscillator();
                 const gain = ctxA.createGain();
                 osc.type = 'sine';
@@ -1052,6 +1090,20 @@
 
         function randomizeSkyTheme() {
             currentSkyTheme = SKY_THEMES[Math.floor(Math.random() * SKY_THEMES.length)];
+        }
+
+        function setSummonCinemaMode(active) {
+            const topNav = document.getElementById('top-control-nav');
+            const bottomBar = document.getElementById('bottom-pan-bar');
+            const toastBox = document.getElementById('toast-box');
+            if (active) {
+                topNav.classList.add('hud-top-hidden');
+                bottomBar.classList.add('hud-bottom-hidden');
+                toastBox.classList.add('opacity-0');
+            } else {
+                topNav.classList.remove('hud-top-hidden');
+                bottomBar.classList.remove('hud-bottom-hidden');
+            }
         }
 
         function spawnDustBurst(wx, wy) {
@@ -1229,10 +1281,6 @@
             c.closePath();
         }
 
-        /**
-         * PERFECT MULTI-LINE WORD WRAPPER & DYNAMIC RPG DIALOG BOX RENDERER
-         * Guarantees Vietnamese text NEVER overflows its speech bubble!
-         */
         function wrapTextLines(c, text, maxInnerWidth) {
             const words = String(text || '').trim().split(/\s+/);
             const lines = [];
@@ -1266,7 +1314,6 @@
             const padY = 9;
             const lineHeight = 16;
 
-            // 1. Set body font BEFORE measuring & wrapping
             c.font = bodyFont;
             const lines = wrapTextLines(c, text, maxTextWidth);
 
@@ -1276,7 +1323,6 @@
                 if (w > maxMeasuredLineW) maxMeasuredLineW = w;
             }
 
-            // 2. Measure speaker header badge width if present
             let headerW = 0;
             if (speakerName) {
                 c.font = headerFont;
@@ -1289,7 +1335,6 @@
             const boxX = anchorX - boxW / 2;
             const boxY = bottomY - boxH;
 
-            // Theme palette
             let bgFill = "rgba(255, 253, 245, 0.97)";
             let borderStroke = "#1e1b4b";
             let innerStroke = "#cbd5e1";
@@ -1327,12 +1372,10 @@
                 badgeText = "#fde047";
             }
 
-            // Drop shadow
             c.fillStyle = "rgba(15, 23, 42, 0.22)";
             drawRoundedRectPath(c, boxX + 2, boxY + 3, boxW, boxH, 9);
             c.fill();
 
-            // Outer RPG Frame
             c.fillStyle = bgFill;
             c.strokeStyle = borderStroke;
             c.lineWidth = 2.4;
@@ -1340,13 +1383,11 @@
             c.fill();
             c.stroke();
 
-            // Inner Subtle Frame
             c.strokeStyle = innerStroke;
             c.lineWidth = 1.2;
             drawRoundedRectPath(ctx, boxX + 2.5, boxY + 2.5, boxW - 5, boxH - 5, 7);
             c.stroke();
 
-            // Speech Pointer Tail
             c.fillStyle = bgFill;
             c.strokeStyle = borderStroke;
             c.lineWidth = 2.4;
@@ -1358,7 +1399,6 @@
             c.fill();
             c.stroke();
 
-            // Speaker Name Pill Badge on Top-Left Border
             if (speakerName) {
                 c.font = headerFont;
                 const pillH = 17;
@@ -1378,7 +1418,6 @@
                 c.fillText(speakerName, pillX + 9, pillY + pillH / 2 + 0.5);
             }
 
-            // Wrapped Text Lines Inside Box
             c.font = bodyFont;
             c.fillStyle = textFill;
             c.textAlign = "center";
@@ -1467,12 +1506,13 @@
                         panicVy: 0,
                         speechText: null,
                         speechTimer: 0,
-                        // Abduction & Fake-out Drop states
+                        // Abduction & Unified Lift/Drop states
                         isBeingAbducted: false,
                         abductProgress: 0,
-                        abductDuration: 2.6,
+                        abductDuration: 0.65,
                         abductStartX: 0,
                         abductStartY: 0,
+                        abductStartScaleRatio: 1,
                         fakeoutState: 'none', // 'none' | 'lifting' | 'falling' | 'sitting_dazed'
                         liftHeight: 0,
                         fallVy: 0,
@@ -1485,6 +1525,7 @@
                     existing.participant = p;
                     existing.isBeingAbducted = false;
                     existing.abductProgress = 0;
+                    existing.abductStartScaleRatio = 1;
                     existing.fakeoutState = 'none';
                     existing.liftHeight = 0;
                     existing.fallVy = 0;
@@ -1540,12 +1581,15 @@
         }, { passive: true });
 
         document.getElementById('btn-pan-left').addEventListener('click', () => {
+            if (isAbductingSequence) return;
             targetCameraX = clampCamera(targetCameraX - 420);
         });
         document.getElementById('btn-pan-right').addEventListener('click', () => {
+            if (isAbductingSequence) return;
             targetCameraX = clampCamera(targetCameraX + 420);
         });
         document.getElementById('slider-camera-pan').addEventListener('input', (e) => {
+            if (isAbductingSequence) return;
             const pct = Number(e.target.value) / 100;
             targetCameraX = clampCamera(pct * getMaxCameraX());
         });
@@ -2268,7 +2312,7 @@
         }
 
         /**************************************************************************
-         * 8. SHOPKEEPER NPCs & CHIBI RESIDENTS (WITH SITTING DAZED & PANIC FLAIL!)
+         * 8. SHOPKEEPER NPCs & CHIBI RESIDENTS (WITH UNIFIED LIFT, DAZED & PANIC)
          **************************************************************************/
         function drawShopkeeperNpc(keeper, nowSec) {
             const wy = viewH * 0.54 + 28 + keeper.wyOffset;
@@ -2305,7 +2349,6 @@
             drawRoundedRectPath(ctx, -11, -56, 22, 30, 4);
             ctx.fill(); ctx.stroke();
 
-            // Waving Arm (flails higher during UFO panic!)
             ctx.save();
             ctx.translate(16, -60);
             const waveRot = isAbductingSequence
@@ -2362,9 +2405,8 @@
                 ctx.fill(); ctx.stroke();
             }
 
-            ctx.restore(); // End flip
+            ctx.restore();
 
-            // Shopkeeper Golden Role Tag & Auto-Wrapped Speech Box
             ctx.save();
             ctx.scale(1 / CHIBI_BASE_SCALE, 1 / CHIBI_BASE_SCALE);
             ctx.font = `900 10px ${FONT_STACK}`;
@@ -2475,26 +2517,33 @@
             let drawX = act.x;
             let drawY = act.y - (act.liftHeight || 0);
             const depthRatio = (act.y - viewH * 0.56) / (viewH * 0.32);
-            let scale = CHIBI_BASE_SCALE * (0.90 + depthRatio * 0.20);
+            const baseScale = CHIBI_BASE_SCALE * (0.90 + depthRatio * 0.20);
+            let scale = baseScale;
             let rot = 0;
 
             if (act.isBeingAbducted) {
                 const t = act.abductProgress;
-                const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-                drawX = act.abductStartX + (ufoState.wx - act.abductStartX) * ease + Math.sin(t * 24) * 14 * (1 - t);
-                drawY = act.abductStartY + ((ufoState.y + 22) - act.abductStartY) * ease;
-                scale = Math.max(0.06, scale * (1 - ease * 0.9));
-                rot = ease * Math.PI * 5.5;
+                const ease = t * t * (3 - 2 * t);
+                const startRatio = act.abductStartScaleRatio || 0.78;
+                drawX = act.abductStartX + (ufoState.wx - act.abductStartX) * ease + Math.sin(t * 18) * 8 * (1 - t);
+                drawY = act.abductStartY + ((ufoState.y + 18) - act.abductStartY) * ease;
+                scale = Math.max(0.05, baseScale * startRatio * (1 - ease * 0.92));
+                rot = ease * Math.PI * 3.5;
             } else if (act.fakeoutState === 'lifting') {
+                // Unified stage 1 lifting physics: identical for BOTH fake-out and real catch!
+                const liftRatio = Math.min(1, (act.liftHeight || 0) / 165);
                 drawX = act.x + Math.sin(nowSec * 22) * 5;
-                rot = Math.sin(nowSec * 14) * 0.22;
+                scale = baseScale * (1 - liftRatio * 0.22);
+                rot = Math.sin(nowSec * 15) * (0.20 + liftRatio * 0.14);
             } else if (act.fakeoutState === 'falling') {
+                const liftRatio = Math.min(1, Math.max(0, (act.liftHeight || 0) / 165));
+                scale = baseScale * (1 - liftRatio * 0.22);
                 rot = Math.sin(nowSec * 25) * 0.32;
             }
 
             // Ground Shadow stays on sidewalk (shrinks when lifted high)
             const heightFactor = Math.max(0.25, 1 - (act.liftHeight || 0) / 260);
-            const shadowScale = act.isBeingAbducted ? Math.max(0.1, 1 - act.abductProgress) : scale * heightFactor;
+            const shadowScale = act.isBeingAbducted ? Math.max(0.08, (1 - act.abductProgress) * 0.35) : scale * heightFactor;
             ctx.save();
             ctx.fillStyle = "rgba(15, 23, 42, 0.32)";
             ctx.beginPath();
@@ -2513,7 +2562,6 @@
             const walkCycle = isWalking ? Math.sin(act.walkPhase) : 0;
             const bodyBounce = isSittingDazed ? 0 : (isWalking ? Math.abs(Math.cos(act.walkPhase)) * 4.5 : Math.sin(act.bobPhase) * 1.6);
 
-            // Drop character lower to the pavement when sitting flat on their bum!
             ctx.translate(0, isSittingDazed ? 14 : -bodyBounce);
 
             ctx.save();
@@ -2597,7 +2645,7 @@
                 ctx.stroke();
             }
 
-            // Back Arm (Flails high up during UFO panic!)
+            // Back Arm
             ctx.strokeStyle = "#1e1b4b";
             ctx.lineWidth = 2.6;
             ctx.save();
@@ -2660,7 +2708,7 @@
                 ctx.restore();
             }
 
-            // Front Arm + Prop (Flails wildly during panic, rubs sore hip when sitting)
+            // Front Arm + Prop
             ctx.save();
             ctx.translate(15, -66);
             const activeProp = (!isAbductingSequence && !act.isBeingAbducted && act.fakeoutState === 'none' && act.targetShop) ? act.targetShop.prop : 'none';
@@ -2735,7 +2783,6 @@
             ctx.arc(0, 0, headRadius, 0, Math.PI * 2);
             ctx.stroke();
 
-            // Flying sweat drops when panicking!
             if (isPanicking) {
                 const swP = (nowSec * 3.5 + act.bobPhase) % 1;
                 ctx.fillStyle = "#38bdf8";
@@ -2749,7 +2796,6 @@
                 ctx.fill(); ctx.stroke();
             }
 
-            // Orbiting Dizzy Stars when dropped sitting on the ground!
             if (isSittingDazed) {
                 for (let s = 0; s < 3; s++) {
                     const ang = nowSec * 5.5 + (s * Math.PI * 2) / 3;
@@ -2761,8 +2807,8 @@
                 }
             }
 
-            ctx.restore(); // End head
-            ctx.restore(); // End flip
+            ctx.restore();
+            ctx.restore();
 
             // Unscaled Crisp Name Tag & Auto-Wrapped Speech Bubble
             ctx.save();
@@ -2825,7 +2871,6 @@
             ctx.save();
             ctx.translate(ufoState.wx - cameraX, ufoState.y + Math.sin(nowSec * 5) * 6);
 
-            // Volumetric Tractor Beam OR Suspenseful Yellow Searchlight Cone
             if (ufoState.beamIntensity > 0.01) {
                 const isSearch = (ufoState.beamMode === 'search');
                 const topW = (isSearch ? 28 : 42) * ufoState.beamIntensity;
@@ -2866,7 +2911,6 @@
                 ctx.closePath();
                 ctx.fill();
 
-                // Rising Anti-Gravity Rings during Tractor Beam
                 if (!isSearch) {
                     ctx.strokeStyle = `rgba(255, 255, 255, ${0.68 * ufoState.beamIntensity})`;
                     ctx.lineWidth = 2.5;
@@ -2990,7 +3034,7 @@
             ctx.textBaseline = "middle";
             ctx.fillText(`👑 ${ufoBoss.name}`, 0, 33);
 
-            // Boss Loudspeaker Broadcast Bubble (Auto-wrapped cleanly!)
+            // Boss Loudspeaker Broadcast Bubble
             const activeBossQuote = ufoBoss.overrideQuote || ufoBoss.slogan;
             if (activeBossQuote) {
                 ctx.save();
@@ -3010,9 +3054,116 @@
         }
 
         /**************************************************************************
-         * 10. SUSPENSEFUL UFO SEARCH + FAKE-OUT DROPS + REAL ABDUCTION SEQUENCE
+         * 10. UNIFIED UFO LIFT + RANDOMIZED FAKE-OUT / REAL CATCH SEQUENCE
          **************************************************************************/
         const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+
+        /**
+         * Unified target beam sequence:
+         * Stage 1 (Lock-on + Tractor Beam Lift up to ~165px) is 100% IDENTICAL for both fake-out & real catch!
+         * Stage 2 (Climax at top of lift): Either sucks target into the UFO (isRealCatch = true) OR drops them ("BỊCH!!")
+         */
+        async function performUnifiedTargetAttempt(targetActor, isRealCatch) {
+            const lockQuoteTemplate = BOSS_LOCKON_QUOTES[Math.floor(Math.random() * BOSS_LOCKON_QUOTES.length)];
+            ufoBoss.overrideQuote = lockQuoteTemplate.replace('{name}', targetActor.participant.name);
+
+            targetCameraX = clampCamera(targetActor.x - viewW / 2);
+            ufoState.targetWx = targetActor.x;
+            ufoState.beamMode = 'search';
+            ufoState.beamIntensity = 0.92;
+            playSfx('scan_ping');
+            await sleep(900);
+
+            // STAGE 1: IDENTICAL TRACTOR BEAM LIFT FOR BOTH FAKE-OUT AND REAL CATCH
+            playSfx('beam');
+            ufoState.beamMode = 'tractor';
+            ufoState.beamIntensity = 1;
+            ufoState.screenShake = 0.38;
+
+            targetActor.fakeoutState = 'lifting';
+            targetActor.liftHeight = 0;
+            targetActor.speechText = UNIFIED_LIFT_SCREAMS[Math.floor(Math.random() * UNIFIED_LIFT_SCREAMS.length)];
+            targetActor.speechTimer = 3.0;
+            spawnEmote(targetActor.x, targetActor.y - 110, "😱");
+
+            // Everyone is lifted for the exact same suspenseful 1.95s up toward the saucer mouth
+            await sleep(1950);
+
+            // STAGE 2: CLIMAX DECISION AT TOP OF BEAM
+            if (isRealCatch) {
+                const confirmTemplate = BOSS_CATCH_CONFIRM_QUOTES[Math.floor(Math.random() * BOSS_CATCH_CONFIRM_QUOTES.length)];
+                ufoBoss.overrideQuote = confirmTemplate.replace('{name}', targetActor.participant.name);
+                playSfx('suck_in');
+                ufoState.screenShake = 0.45;
+
+                const currentLift = targetActor.liftHeight || 160;
+                const currentScaleRatio = 1 - Math.min(1, currentLift / 165) * 0.22;
+
+                targetActor.fakeoutState = 'none';
+                targetActor.isBeingAbducted = true;
+                targetActor.abductProgress = 0;
+                targetActor.abductDuration = 0.65;
+                targetActor.abductStartX = targetActor.x;
+                targetActor.abductStartY = targetActor.y - currentLift;
+                targetActor.abductStartScaleRatio = currentScaleRatio;
+                targetActor.liftHeight = 0;
+                spawnEmote(targetActor.x, targetActor.abductStartY - 40, "🛸");
+
+                await sleep(700);
+                ufoState.beamIntensity = 0;
+                await sleep(280);
+            } else {
+                ufoBoss.overrideQuote = BOSS_FAKEOUT_DROP_QUOTES[Math.floor(Math.random() * BOSS_FAKEOUT_DROP_QUOTES.length)];
+                playSfx('power_down');
+                ufoState.beamIntensity = 0;
+                targetActor.fakeoutState = 'falling';
+                targetActor.fallVy = 0;
+
+                // Wait for gravity fall to slam onto the sidewalk ("BỊCH!!")
+                await sleep(820);
+                await sleep(880);
+            }
+        }
+
+        /**
+         * Generates a natural, randomized fake-out schedule per winner slot.
+         * - Single winner (pickCount === 1): 1 or 2 fake-outs for maximum suspense.
+         * - Multiple winners (pickCount > 1): Lower fake-out rate & randomized across slots
+         *   (e.g. Winner 1 caught immediately, Winner 2 has a fake-out first, Winner 3 caught immediately...)
+         */
+        function buildFakeoutSchedule(pickCount, availableNonWinnersCount) {
+            const schedule = new Array(pickCount).fill(0);
+            if (availableNonWinnersCount <= 0) return schedule;
+
+            if (pickCount === 1) {
+                schedule[0] = Math.min(availableNonWinnersCount, Math.random() < 0.65 ? 1 : 2);
+                return schedule;
+            }
+
+            // Multi-person mode: lower probability per slot so some are caught right away
+            const slotFakeoutProb = pickCount === 2 ? 0.50 : (pickCount <= 4 ? 0.35 : 0.25);
+            const maxTotalFakeouts = Math.min(
+                availableNonWinnersCount,
+                Math.max(1, Math.ceil(pickCount * 0.55))
+            );
+
+            let usedFakeouts = 0;
+            for (let i = 0; i < pickCount; i++) {
+                if (usedFakeouts >= maxTotalFakeouts) break;
+                if (Math.random() < slotFakeoutProb) {
+                    schedule[i] = 1;
+                    usedFakeouts++;
+                }
+            }
+
+            // Guarantee at least 1 fake-out somewhere in the round if none rolled (so it's still fun)
+            if (usedFakeouts === 0 && availableNonWinnersCount > 0) {
+                const randomSlot = Math.floor(Math.random() * pickCount);
+                schedule[randomSlot] = 1;
+            }
+
+            return schedule;
+        }
 
         async function startUfoAbductionSequence() {
             if (isAbductingSequence) return;
@@ -3028,6 +3179,10 @@
             ufoBoss.overrideQuote = null;
             const summonBtn = document.getElementById('btn-summon-ufo');
             summonBtn.disabled = true;
+
+            // Hide all UI controls to focus 100% on the street abduction scene
+            closeDrawers();
+            setSummonCinemaMode(true);
 
             // Reset any previous sitting state
             for (const act of actors.values()) {
@@ -3068,8 +3223,8 @@
             ufoState.beamIntensity = 0.85;
             await sleep(850);
 
-            // Suspenseful scanning sweeps over 3 random residents
-            const scanPool = [...candidates].sort(() => Math.random() - 0.5).slice(0, Math.min(3, candidates.length));
+            const scanCount = pickCount > 2 ? 2 : 3;
+            const scanPool = [...candidates].sort(() => Math.random() - 0.5).slice(0, Math.min(scanCount, candidates.length));
             for (let s = 0; s < scanPool.length; s++) {
                 const scanTarget = scanPool[s];
                 ufoBoss.overrideQuote = `Đang quét radar dò nhân phẩm khu vực ${s + 1}... Ai đây ta?! 👀`;
@@ -3078,10 +3233,10 @@
                 playSfx('scan_ping');
                 scanTarget.speechText = "Á đừng soi đèn vô em Sếp ơi!! 😱";
                 scanTarget.speechTimer = 2.2;
-                await sleep(1050);
+                await sleep(950);
             }
 
-            // PHASE 3 & 4: FAKE-OUT DROPS ("NHÁ HÀNG THẢ RƠI BỊCH XUỐNG ĐẤT") + REAL ABDUCTION
+            // PHASE 3 & 4: UNIFIED LIFTING + RANDOMIZED FAKE-OUTS / REAL CATCHES
             if (settings.abductMode === 'simultaneous' && winners.length > 1) {
                 ufoBoss.overrideQuote = "KÍCH HOẠT TIA HÚT TỔNG LỰC!! HỐT HẾT LÊN TÀU!! 🛸";
                 const avgWx = winners.reduce((acc, w) => acc + w.x, 0) / winners.length;
@@ -3094,93 +3249,47 @@
                 ufoState.beamIntensity = 1;
                 ufoState.screenShake = 0.5;
 
+                // Stage 1 unified lift for all simultaneous winners
                 winners.forEach(w => {
-                    w.isBeingAbducted = true;
-                    w.abductProgress = 0;
-                    w.abductDuration = 2.6;
-                    w.abductStartX = w.x;
-                    w.abductStartY = w.y;
+                    w.fakeoutState = 'lifting';
+                    w.liftHeight = 0;
+                    w.speechText = UNIFIED_LIFT_SCREAMS[Math.floor(Math.random() * UNIFIED_LIFT_SCREAMS.length)];
+                    w.speechTimer = 2.8;
                 });
 
-                await sleep(2750);
+                await sleep(1900);
+
+                // Stage 2 suck into UFO
+                playSfx('suck_in');
+                winners.forEach(w => {
+                    const currentLift = w.liftHeight || 160;
+                    w.fakeoutState = 'none';
+                    w.isBeingAbducted = true;
+                    w.abductProgress = 0;
+                    w.abductDuration = 0.7;
+                    w.abductStartX = w.x;
+                    w.abductStartY = w.y - currentLift;
+                    w.abductStartScaleRatio = 0.78;
+                    w.liftHeight = 0;
+                });
+
+                await sleep(780);
                 ufoState.beamIntensity = 0;
             } else {
                 let fakeoutPool = [...nonWinners];
+                const fakeoutSchedule = buildFakeoutSchedule(winners.length, fakeoutPool.length);
 
                 for (let wIdx = 0; wIdx < winners.length; wIdx++) {
                     const realWinner = winners[wIdx];
+                    const numFakeoutsForThisWinner = fakeoutSchedule[wIdx] || 0;
 
-                    // Perform 1 or 2 Fake-out Drops before abducting the real winner!
-                    const numFakeouts = fakeoutPool.length >= 2 ? (wIdx === 0 ? 2 : 1) : (fakeoutPool.length === 1 ? 1 : 0);
-
-                    for (let f = 0; f < numFakeouts; f++) {
+                    for (let f = 0; f < numFakeoutsForThisWinner; f++) {
                         const victim = fakeoutPool.shift();
                         if (!victim) break;
-
-                        // 1. Fly to fake-out victim & lock searchlight
-                        ufoBoss.overrideQuote = `Đã khóa mục tiêu: ${victim.participant.name}! Chuẩn bị kéo lên đĩa bay! 🎯`;
-                        targetCameraX = clampCamera(victim.x - viewW / 2);
-                        ufoState.targetWx = victim.x;
-                        ufoState.beamMode = 'search';
-                        ufoState.beamIntensity = 0.9;
-                        playSfx('scan_ping');
-                        await sleep(950);
-
-                        // 2. Activate Tractor Beam & slowly lift victim halfway up (~145px)
-                        playSfx('beam');
-                        ufoState.beamMode = 'tractor';
-                        ufoState.beamIntensity = 1;
-                        ufoState.screenShake = 0.35;
-
-                        victim.fakeoutState = 'lifting';
-                        victim.liftHeight = 0;
-                        victim.speechText = FAKEOUT_LIFT_SCREAMS[Math.floor(Math.random() * FAKEOUT_LIFT_SCREAMS.length)];
-                        victim.speechTimer = 3.0;
-                        spawnEmote(victim.x, victim.y - 110, "😱");
-
-                        // Suspenseful 2.2-second mid-air lift!
-                        await sleep(2200);
-
-                        // 3. SUDDEN BOSS CHANGE OF MIND -> CUT BEAM & DROP!
-                        ufoBoss.overrideQuote = BOSS_FAKEOUT_DROP_QUOTES[Math.floor(Math.random() * BOSS_FAKEOUT_DROP_QUOTES.length)];
-                        playSfx('power_down');
-                        ufoState.beamIntensity = 0;
-                        victim.fakeoutState = 'falling';
-                        victim.fallVy = 0;
-
-                        // Wait for gravity fall to slam onto the sidewalk ("BỊCH!!")
-                        await sleep(850);
-
-                        // Brief pause so user can laugh at the character sitting dazed on the ground
-                        await sleep(950);
+                        await performUnifiedTargetAttempt(victim, false);
                     }
 
-                    // NOW FLY TO THE REAL WINNER FOR DRAMATIC FULL ABDUCTION!
-                    ufoBoss.overrideQuote = `Mục tiêu chính thức đây rồi: ${realWinner.participant.name}! Khỏi chạy thoát nha em!! 🛸⚡`;
-                    targetCameraX = clampCamera(realWinner.x - viewW / 2);
-                    ufoState.targetWx = realWinner.x;
-                    ufoState.beamMode = 'search';
-                    ufoState.beamIntensity = 0.95;
-                    playSfx('scan_ping');
-                    realWinner.speechText = "Thôi xong, tới lượt em thiệt rồi bà con ơi!! 😭🛸";
-                    realWinner.speechTimer = 2.6;
-                    await sleep(1050);
-
-                    playSfx('beam');
-                    ufoState.beamMode = 'tractor';
-                    ufoState.beamIntensity = 1;
-                    ufoState.screenShake = 0.45;
-
-                    realWinner.isBeingAbducted = true;
-                    realWinner.abductProgress = 0;
-                    realWinner.abductDuration = 2.65; // Slower, more suspenseful full abduction!
-                    realWinner.abductStartX = realWinner.x;
-                    realWinner.abductStartY = realWinner.y;
-                    spawnEmote(realWinner.x, realWinner.y - 110, "🛸");
-
-                    await sleep(2750);
-                    ufoState.beamIntensity = 0;
-                    await sleep(300);
+                    await performUnifiedTargetAttempt(realWinner, true);
                 }
             }
 
@@ -3204,7 +3313,7 @@
             renderRosterUI();
             renderHistoryUI();
 
-            // PHASE 5: UFO ZOOMS OFF INTO THE SKY
+            // PHASE 5: UFO ZOOMS OFF INTO THE SKY & RESTORE UI CONTROLS
             ufoBoss.overrideQuote = "Đã bắt đủ chỉ tiêu! Hẹn gặp lại trên Tàu Mẹ nha anh em!! 🚀";
             ufoState.panicOverlayAlpha = 0;
             ufoState.targetWx = cameraX + viewW + 260;
@@ -3215,6 +3324,7 @@
             ufoBoss.overrideQuote = null;
             isAbductingSequence = false;
             summonBtn.disabled = false;
+            setSummonCinemaMode(false);
 
             randomizeSkyTheme();
             syncStreetActors();
@@ -3265,23 +3375,22 @@
                     if (act.speechTimer <= 0) act.speechText = null;
                 }
 
-                // 1. Real Full Abduction Progress
+                // 1. Final Suck-in Abduction Progress
                 if (act.isBeingAbducted) {
-                    act.abductProgress = Math.min(1, act.abductProgress + dt / (act.abductDuration || 2.6));
+                    act.abductProgress = Math.min(1, act.abductProgress + dt / (act.abductDuration || 0.65));
                     continue;
                 }
 
-                // 2. Fake-out Mid-Air Lift State
+                // 2. Unified Mid-Air Lift State (Used identically for both fake-out & real catch)
                 if (act.fakeoutState === 'lifting') {
-                    // Gently pull toward UFO X and lift up to ~150px off ground
-                    act.x += (ufoState.wx - act.x) * Math.min(1, dt * 4.5);
-                    act.liftHeight = Math.min(155, (act.liftHeight || 0) + 72 * dt);
+                    act.x += (ufoState.wx - act.x) * Math.min(1, dt * 4.8);
+                    act.liftHeight = Math.min(165, (act.liftHeight || 0) + 84 * dt);
                     continue;
                 }
 
                 // 3. Fake-out Gravity Free-Fall State ("Rơi bịch xuống đất!")
                 if (act.fakeoutState === 'falling') {
-                    act.fallVy = (act.fallVy || 0) + 920 * dt; // Gravity acceleration
+                    act.fallVy = (act.fallVy || 0) + 960 * dt;
                     act.liftHeight = (act.liftHeight || 0) - act.fallVy * dt;
 
                     if (act.liftHeight <= 0) {
@@ -3292,7 +3401,6 @@
                         act.speechText = DROPPED_RELIEF_QUOTES[Math.floor(Math.random() * DROPPED_RELIEF_QUOTES.length)];
                         act.speechTimer = 4.8;
 
-                        // Trigger "BỊCH!!" impact effects
                         playSfx('thud');
                         ufoState.screenShake = 0.38;
                         spawnDustBurst(act.x, act.y);
@@ -3313,7 +3421,7 @@
 
                 // 5. Frantic Crowd Panic ("Chạy rối rít khi thấy UFO!")
                 if (isAbductingSequence) {
-                    act.walkPhase += dt * 26; // Super fast leg cycle
+                    act.walkPhase += dt * 26;
                     act.panicZigZagTimer -= dt;
                     if (act.panicZigZagTimer <= 0) {
                         act.panicZigZagTimer = 0.32 + Math.random() * 0.55;
@@ -3325,7 +3433,6 @@
                         }
                     }
 
-                    // Run 3.0x faster in zig-zag!
                     act.x += act.dir * act.speed * 2.95 * dt;
                     act.y += (act.panicVy || 0) * dt;
 
@@ -3473,6 +3580,7 @@
         const backdrop = document.getElementById('drawer-backdrop');
 
         function openDrawer(which) {
+            if (isAbductingSequence) return;
             backdrop.classList.remove('hidden');
             requestAnimationFrame(() => backdrop.classList.remove('opacity-0'));
             if (which === 'history') {
@@ -3504,6 +3612,7 @@
         backdrop.addEventListener('click', closeDrawers);
 
         function showToast(msg) {
+            if (isAbductingSequence) return;
             const box = document.getElementById('toast-box');
             box.textContent = msg;
             box.classList.remove('opacity-0');
